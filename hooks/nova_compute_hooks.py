@@ -275,7 +275,7 @@ def pgsql_db_joined():
         raise Exception(e)
 
     relation_set(**{'database': config('database'),
-                    'private-address': get_relation_ip('psql-db')})
+                    'private-address': get_relation_ip('pgsql-db')})
 
 
 @hooks.hook('shared-db-relation-changed')
