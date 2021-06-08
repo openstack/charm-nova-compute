@@ -46,6 +46,7 @@
   /etc/modprobe.d/ r,
   /etc/modprobe.d/** r,
   /etc/mtab rw,
+  /etc/multipath.conf r,
   /etc/multipath/bindings wrk,
   /etc/multipath/wwids wrk,
   /etc/nova/** r,
