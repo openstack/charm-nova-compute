@@ -839,6 +839,99 @@ class NovaComputeContextTests(CharmTestCase):
         self.assertEqual(libvirt()['cpu_model_extra_flags'],
                          'pcid, vmx, pdpe1gb')
 
+    _pci_alias1 = (
+        '{'
+        '"name": "IntelNIC",'
+        '"capability_type": "pci",'
+        '"product_id": "1111",'
+        '"vendor_id": "8086",'
+        '"device_type": "type-PF"'
+        '}'
+    )
+
+    _pci_alias2 = (
+        '{'
+        '"name": " Cirrus Logic ",'
+        '"capability_type": "pci",'
+        '"product_id": "0ff2",'
+        '"vendor_id": "10de",'
+        '"device_type": "type-PCI"'
+        '}'
+    )
+
+    _pci_alias_list = "[" + _pci_alias1 + "," + _pci_alias2 + "]"
+
+    @patch('charmhelpers.contrib.openstack.ip.unit_get')
+    @patch('charmhelpers.contrib.hahelpers.cluster.relation_ids')
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('charmhelpers.contrib.openstack.context.config')
+    def test_nova_config_context_multi_pci_alias_pike(self, mock_config,
+                                                      local_unit,
+                                                      mock_relation_ids,
+                                                      mock_unit_get):
+        self.os_release.return_value = 'pike'
+        local_unit.return_value = 'nova-compute/0'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'xenial'}
+        mock_config.side_effect = self.test_config.get
+        mock_unit_get.return_value = '127.0.0.1'
+        self.test_config.set('pci-alias', self._pci_alias_list)
+        ctxt = context.NovaComputeLibvirtContext()()
+        self.assertEqual(
+            ctxt['pci_alias'],
+            ('[{"capability_type": "pci", "device_type": "type-PF", '
+             '"name": "IntelNIC", "product_id": "1111", '
+             '"vendor_id": "8086"}, '
+             '{"capability_type": "pci", "device_type": "type-PCI", '
+             '"name": " Cirrus Logic ", "product_id": "0ff2", '
+             '"vendor_id": "10de"}]'))
+
+    @patch('charmhelpers.contrib.openstack.ip.unit_get')
+    @patch('charmhelpers.contrib.hahelpers.cluster.relation_ids')
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('charmhelpers.contrib.openstack.context.config')
+    def test_nova_config_context_multi_pci_alias(self, mock_config,
+                                                 local_unit,
+                                                 mock_relation_ids,
+                                                 mock_unit_get):
+        local_unit.return_value = 'nova-compute/0'
+        self.os_release.return_value = 'queens'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
+        mock_config.side_effect = self.test_config.get
+        mock_unit_get.return_value = '127.0.0.1'
+        self.test_config.set('pci-alias', self._pci_alias1)
+        ctxt = context.NovaComputeLibvirtContext()()
+        self.assertEqual(
+            ctxt['pci_alias'],
+            ('{"capability_type": "pci", "device_type": "type-PF", '
+             '"name": "IntelNIC", "product_id": "1111", '
+             '"vendor_id": "8086"}'))
+
+    @patch('charmhelpers.contrib.openstack.ip.unit_get')
+    @patch('charmhelpers.contrib.hahelpers.cluster.relation_ids')
+    @patch('charmhelpers.core.hookenv.local_unit')
+    @patch('charmhelpers.contrib.openstack.context.config')
+    def test_nova_config_context_multi_pci_aliases(self, mock_config,
+                                                   local_unit,
+                                                   mock_relation_ids,
+                                                   mock_unit_get):
+        local_unit.return_value = 'nova-compute/0'
+        self.os_release.return_value = 'queens'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
+        mock_config.side_effect = self.test_config.get
+        mock_unit_get.return_value = '127.0.0.1'
+        self.test_config.set('pci-alias', self._pci_alias_list)
+        ctxt = context.NovaComputeLibvirtContext()()
+        self.assertEqual(
+            ctxt['pci_aliases'][0],
+            ('{"capability_type": "pci", "device_type": "type-PF", '
+             '"name": "IntelNIC", "product_id": "1111", '
+             '"vendor_id": "8086"}'))
+        self.assertEqual(
+            ctxt['pci_aliases'][1],
+            ('{"capability_type": "pci", "device_type": "type-PCI", '
+             '"name": " Cirrus Logic ", "product_id": "0ff2", '
+             '"vendor_id": "10de"}'))
+
 
 class IronicAPIContextTests(CharmTestCase):
 

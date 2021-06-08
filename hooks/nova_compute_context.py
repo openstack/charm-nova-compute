@@ -275,7 +275,13 @@ class NovaComputeLibvirtContext(context.OSContextGenerator):
                 config('pci-passthrough-whitelist')
 
         if config('pci-alias'):
-            ctxt['pci_alias'] = config('pci-alias')
+            aliases = json.loads(config('pci-alias'))
+            # Behavior previous to queens is maintained as it was
+            if isinstance(aliases, list) and cmp_os_release >= 'queens':
+                ctxt['pci_aliases'] = [json.dumps(x, sort_keys=True)
+                                       for x in aliases]
+            else:
+                ctxt['pci_alias'] = json.dumps(aliases, sort_keys=True)
 
         if config('cpu-dedicated-set'):
             ctxt['cpu_dedicated_set'] = config('cpu-dedicated-set')

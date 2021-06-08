@@ -234,7 +234,10 @@ options:
         pci-alias='{"vendor_id":"8086","product_id":"10ca","name":"a1"}'
       .
       This configures a new PCI alias 'a1' which will request a PCI device with
-      a vendor id of 0x8086 and a product id of 10ca.
+      a vendor id of 0x8086 and a product id of 10ca. To input a list of
+      aliases, use the following syntax in this charm config option:
+      .
+        pci-alias='[{...},{...}]'
       .
       For more information about the syntax of pci_alias, refer to
       https://docs.openstack.org/ocata/config-reference/compute/config-options.html
