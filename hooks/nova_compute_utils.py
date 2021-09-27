@@ -73,6 +73,8 @@ from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     get_os_codename_install_source,
+    get_subordinate_release_packages,
+    get_subordinate_services,
     os_release,
     reset_os_release,
     is_unit_paused_set,
@@ -437,8 +439,12 @@ def restart_map():
 
 
 def services():
-    ''' Returns a list of services associated with this charm '''
-    return list(set(chain(*restart_map().values())))
+    '''
+    Returns a list of services associated with this charm and its subordinates.
+    '''
+
+    return list(set(chain(*restart_map().values()))
+                | get_subordinate_services())
 
 
 def register_configs():
@@ -535,15 +541,22 @@ def determine_packages():
         if virt_type == 'lxd':
             packages.append('python3-nova-lxd')
 
+    packages = sorted(set(packages).union(get_subordinate_release_packages(
+        release).install))
+
     return packages
 
 
 def determine_purge_packages():
     '''Return a list of packages to purge for the current OS release'''
-    cmp_os_source = CompareOpenStackReleases(os_release('nova-common'))
-    if cmp_os_source >= 'rocky':
-        return PURGE_PACKAGES
-    return []
+    release = os_release('nova-common')
+    cmp_release = CompareOpenStackReleases(release)
+    packages = []
+    if cmp_release >= 'rocky':
+        packages.extend(PURGE_PACKAGES)
+    packages = sorted(set(packages).union(get_subordinate_release_packages(
+        release).purge))
+    return packages
 
 
 def remove_old_packages():
