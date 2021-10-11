@@ -35,18 +35,23 @@ machines:
 applications:
 
   nova-cloud-controller-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: cs:~openstack-charmers/mysql-router
+    channel: candidate
   keystone-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: cs:~openstack-charmers/mysql-router
+    channel: candidate
   glance-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: cs:~openstack-charmers/mysql-router
+    channel: candidate
   neutron-api-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: cs:~openstack-charmers/mysql-router
+    channel: candidate
   placement-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: cs:~openstack-charmers/mysql-router
+    channel: candidate
 
   mysql-innodb-cluster:
-    charm: cs:~openstack-charmers-next/mysql-innodb-cluster
+    charm: cs:~openstack-charmers/mysql-innodb-cluster
     num_units: 3
     options:
       source: *openstack-origin
@@ -54,9 +59,10 @@ applications:
       - '0'
       - '1'
       - '2'
+    channel: candidate
 
   ceph-osd:
-    charm: cs:~openstack-charmers-next/ceph-osd
+    charm: cs:~openstack-charmers/ceph-osd
     num_units: 6
     storage:
       osd-devices: '10G'
@@ -69,9 +75,10 @@ applications:
       - '14'
       - '15'
       - '16'
+    channel: candidate
 
   ceph-mon:
-    charm: cs:~openstack-charmers-next/ceph-mon
+    charm: cs:~openstack-charmers/ceph-mon
     num_units: 3
     options:
       source: *openstack-origin
@@ -80,17 +87,19 @@ applications:
       - '17'
       - '18'
       - '19'
+    channel: candidate
 
   rabbitmq-server:
-    charm: cs:~openstack-charmers-next/rabbitmq-server
+    charm: cs:~openstack-charmers/rabbitmq-server
     num_units: 1
     options:
       source: *openstack-origin
     to:
       - '3'
+    channel: candidate
 
   nova-cloud-controller:
-    charm: cs:~openstack-charmers-next/nova-cloud-controller
+    charm: cs:~openstack-charmers/nova-cloud-controller
     num_units: 1
     options:
       openstack-origin: *openstack-origin
@@ -98,9 +107,10 @@ applications:
       debug: true
     to:
       - '4'
+    channel: candidate
 
   neutron-api:
-    charm: cs:~openstack-charmers-next/neutron-api
+    charm: cs:~openstack-charmers/neutron-api
     num_units: 1
     options:
       manage-neutron-plugin-legacy-mode: true
@@ -109,42 +119,48 @@ applications:
       neutron-security-groups: true
     to:
       - '5'
+    channel: candidate
 
   keystone:
-    charm: cs:~openstack-charmers-next/keystone
+    charm: cs:~openstack-charmers/keystone
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '6'
+    channel: candidate
 
   neutron-gateway:
-    charm: cs:~openstack-charmers-next/neutron-gateway
+    charm: cs:~openstack-charmers/neutron-gateway
     num_units: 1
     options:
       openstack-origin: *openstack-origin
       bridge-mappings: physnet1:br-ex
     to:
       - '7'
+    channel: candidate
 
   glance:
-    charm: cs:~openstack-charmers-next/glance
+    charm: cs:~openstack-charmers/glance
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '8'
+    channel: candidate
 
   neutron-openvswitch:
-    charm: cs:~openstack-charmers-next/neutron-openvswitch
+    charm: cs:~openstack-charmers/neutron-openvswitch
+    channel: candidate
 
   placement:
-    charm: cs:~openstack-charmers-next/placement
+    charm: cs:~openstack-charmers/placement
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '9'
+    channel: candidate
 
   nova-compute:
     charm: ../../../nova-compute

@@ -46,53 +46,62 @@ relations:
   - nova-cloud-controller:placement
 applications:
   rabbitmq-server:
-    charm: cs:~openstack-charmers-next/rabbitmq-server
+    charm: cs:~openstack-charmers/rabbitmq-server
     num_units: 1
+    channel: candidate
   percona-cluster:
-    charm: cs:~openstack-charmers-next/percona-cluster
+    charm: cs:~openstack-charmers/percona-cluster
     num_units: 1
     options:
       max-connections: 1000
       innodb-buffer-pool-size: 256M
+    channel: candidate
   nova-cloud-controller:
-    charm: cs:~openstack-charmers-next/nova-cloud-controller
+    charm: cs:~openstack-charmers/nova-cloud-controller
     num_units: 1
     constraints: mem=4G
     options:
       openstack-origin: cloud:bionic-ussuri
       network-manager: Neutron
       debug: true
+    channel: candidate
   neutron-api:
-    charm: cs:~openstack-charmers-next/neutron-api
+    charm: cs:~openstack-charmers/neutron-api
     num_units: 1
     options:
       manage-neutron-plugin-legacy-mode: true
       openstack-origin: cloud:bionic-ussuri
       flat-network-providers: physnet1
       neutron-security-groups: true
+    channel: candidate
   keystone:
-    charm: cs:~openstack-charmers-next/keystone
+    charm: cs:~openstack-charmers/keystone
     num_units: 1
     options:
       openstack-origin: cloud:bionic-ussuri
+    channel: candidate
   neutron-gateway:
-    charm: cs:~openstack-charmers-next/neutron-gateway
+    charm: cs:~openstack-charmers/neutron-gateway
     num_units: 1
     options:
       openstack-origin: cloud:bionic-ussuri
       bridge-mappings: physnet1:br-ex
+    channel: candidate
   glance:
-    charm: cs:~openstack-charmers-next/glance
+    charm: cs:~openstack-charmers/glance
     num_units: 1
     options:
       openstack-origin: cloud:bionic-ussuri
+    channel: candidate
   neutron-openvswitch:
-    charm: cs:~openstack-charmers-next/neutron-openvswitch
+    charm: cs:~openstack-charmers/neutron-openvswitch
+    channel: candidate
   placement:
-    charm: cs:~openstack-charmers-next/placement
+    charm: cs:~openstack-charmers/placement
     num_units: 1
     options:
       openstack-origin: cloud:bionic-ussuri
+    channel: candidate
   nova-compute:
     charm: ../../../nova-compute
     num_units: 1
