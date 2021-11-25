@@ -244,6 +244,11 @@ options:
     default: 512
     description: |
       Amount of memory in MB to reserve for the host. Defaults to 512MB.
+  reserved-host-disk:
+    type: int
+    default: 0
+    description: |
+      Amount of disk resource in MB to reserve for the host. Defaults to 0MB.
   vcpu-pin-set:
     type: string
     default:

@@ -302,6 +302,7 @@ class NovaComputeLibvirtContext(context.OSContextGenerator):
             ctxt['num_pcie_ports'] = config('num-pcie-ports')
 
         ctxt['reserved_host_memory'] = config('reserved-host-memory')
+        ctxt['reserved_host_disk'] = config('reserved-host-disk')
 
         db = kv()
         if db.get('host_uuid'):
