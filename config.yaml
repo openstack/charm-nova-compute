@@ -147,14 +147,17 @@ options:
     type: boolean
     default: False
     description: |
-      If live-migration is enabled, this option allows Nova to switch an on-
-      going live migration to post-copy mode.
+      If live-migration is enabled, this option allows Nova to switch an
+      on-going live migration to post-copy mode. The switch will happen if the
+      migration reaches 'live-migration-completion-timeout'. This supersedes
+      'live-migration-permit-auto-converge'.
   live-migration-permit-auto-converge:
     type: boolean
     default: False
     description: |
       If live-migration is enabled, this option allows Nova to throttle down
-      CPU when an on-going live migration is slow.
+      CPU when an on-going live migration is slow. This is superseded by
+      'live-migration-permit-post-copy'.
   authorized-keys-path:
     type: string
     default: '{homedir}/.ssh/authorized_keys'
