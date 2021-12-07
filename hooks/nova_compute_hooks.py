@@ -267,13 +267,7 @@ def config_changed():
         for unit in related_units(rid):
             ceph_access(rid=rid, unit=unit)
 
-    CONFIGS.write_all()
-
-    NovaComputeAppArmorContext().setup_aa_profile()
-    if (network_manager() in ['flatmanager', 'flatdhcpmanager'] and
-            config('multi-host').lower() == 'yes'):
-        NovaAPIAppArmorContext().setup_aa_profile()
-        NovaNetworkAppArmorContext().setup_aa_profile()
+    update_all_configs()
 
     install_vaultlocker()
     install_multipath()
@@ -281,6 +275,17 @@ def config_changed():
     configure_local_ephemeral_storage()
 
     check_and_start_iscsid()
+
+
+def update_all_configs():
+
+    CONFIGS.write_all()
+
+    NovaComputeAppArmorContext().setup_aa_profile()
+    if (network_manager() in ['flatmanager', 'flatdhcpmanager'] and
+            config('multi-host').lower() == 'yes'):
+        NovaAPIAppArmorContext().setup_aa_profile()
+        NovaNetworkAppArmorContext().setup_aa_profile()
 
 
 def install_vaultlocker():
@@ -365,7 +370,7 @@ def compute_joined(rid=None):
 def compute_changed():
     # rewriting all configs to pick up possible net or vol manager
     # config advertised from controller.
-    CONFIGS.write_all()
+    update_all_configs()
     import_authorized_keys()
     import_authorized_keys(user='nova', prefix='nova')
     import_keystone_ca_cert()
@@ -627,13 +632,13 @@ def _get_broker_rid_unit_for_previous_request():
 def ceph_broken():
     service = service_name()
     delete_keyring(service=service)
-    CONFIGS.write_all()
+    update_all_configs()
 
 
 @hooks.hook('amqp-relation-broken', 'image-service-relation-broken')
 @restart_on_change(restart_map())
 def relation_broken():
-    CONFIGS.write_all()
+    update_all_configs()
 
 
 @hooks.hook('upgrade-charm.real')
@@ -677,7 +682,7 @@ def nova_ceilometer_joined(relid=None, remote_restart=False):
 @hooks.hook('nova-ceilometer-relation-changed')
 @restart_on_change(restart_map())
 def nova_ceilometer_relation_changed():
-    CONFIGS.write_all()
+    update_all_configs()
 
 
 @hooks.hook('nrpe-external-master-relation-joined',
