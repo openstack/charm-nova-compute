@@ -84,6 +84,7 @@ TO_PATCH = [
     'network_manager',
     'libvirt_daemon',
     'configure_local_ephemeral_storage',
+    'update_all_configs',
     # misc_utils
     'ensure_ceph_keyring',
     'execd_preinstall',
@@ -503,6 +504,7 @@ class NovaComputeRelationsTests(CharmTestCase):
             call(),
             call(user='nova', prefix='nova'),
         ])
+        self.update_all_configs.assert_called()
 
     def test_compute_changed_nonstandard_authorized_keys_path(self):
         self.migration_enabled.return_value = False
@@ -512,6 +514,10 @@ class NovaComputeRelationsTests(CharmTestCase):
             user='nova',
             prefix='nova',
         )
+
+    def test_nova_ceilometer_relation_changed(self):
+        hooks.nova_ceilometer_relation_changed()
+        self.update_all_configs.assert_called()
 
     def test_ceph_joined(self):
         self.libvirt_daemon.return_value = 'libvirt-bin'
