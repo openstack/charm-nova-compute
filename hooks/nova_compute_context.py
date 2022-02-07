@@ -346,7 +346,19 @@ class NovaComputeLibvirtOverrideContext(context.OSContextGenerator):
 
 
 class NovaComputeVirtContext(context.OSContextGenerator):
-    interfaces = []
+    interfaces = ['cloud-compute']
+
+    @property
+    def allow_resize_to_same_host(self):
+        for rid in relation_ids('cloud-compute'):
+            for unit in related_units(rid):
+                _allow_resize_same_host =\
+                    relation_get('allow_resize_to_same_host',
+                                 rid=rid,
+                                 unit=unit)
+                if _allow_resize_same_host:
+                    return bool_from_string(_allow_resize_same_host)
+        return False
 
     def __call__(self):
         ctxt = {}
@@ -356,6 +368,7 @@ class NovaComputeVirtContext(context.OSContextGenerator):
             ctxt['enable_live_migration'] = config('enable-live-migration')
         ctxt['resume_guests_state_on_host_boot'] =\
             config('resume-guests-state-on-host-boot')
+        ctxt['allow_resize_to_same_host'] = self.allow_resize_to_same_host
         return ctxt
 
 

@@ -702,7 +702,9 @@ class NovaComputeContextTests(CharmTestCase):
         self.test_config.set('virt-type', 'lxd')
 
         lxd = context.NovaComputeVirtContext()
-        self.assertEqual({'resume_guests_state_on_host_boot': False}, lxd())
+        self.assertEqual(
+            {'resume_guests_state_on_host_boot': False,
+             'allow_resize_to_same_host': False}, lxd())
 
     def test_lxd_live_migration_opts_yakkety(self):
         self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
@@ -714,6 +716,7 @@ class NovaComputeContextTests(CharmTestCase):
         self.assertEqual(
             {'enable_live_migration': True,
              'resume_guests_state_on_host_boot': False,
+             'allow_resize_to_same_host': False,
              'virt_type': 'lxd'}, lxd())
 
     def test_resume_guests_state_on_host_boot(self):
@@ -722,7 +725,45 @@ class NovaComputeContextTests(CharmTestCase):
         self.lsb_release.return_value = {'DISTRIB_CODENAME': 'lucid'}
         self.test_config.set('resume-guests-state-on-host-boot', True)
         lxd = context.NovaComputeVirtContext()
-        self.assertEqual({'resume_guests_state_on_host_boot': True}, lxd())
+        self.assertEqual(
+            {'resume_guests_state_on_host_boot': True,
+             'allow_resize_to_same_host': False}, lxd())
+
+    def test_allow_resize_to_same_host_empty(self):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'lucid'}
+        self.relation_ids.return_value = ['cloud-compute:0']
+        self.related_units.return_value = 'nova-cloud-controller/0'
+        self.test_relation.set({
+            'allow_resize_to_same_host': None,
+        })
+        self.assertEqual(
+            {'resume_guests_state_on_host_boot': False,
+             'allow_resize_to_same_host': False},
+            context.NovaComputeVirtContext()())
+
+    def test_allow_resize_to_same_host_enabled(self):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'lucid'}
+        self.relation_ids.return_value = ['cloud-compute:0']
+        self.related_units.return_value = 'nova-cloud-controller/0'
+        self.test_relation.set({
+            'allow_resize_to_same_host': 'true',
+        })
+        self.assertEqual(
+            {'resume_guests_state_on_host_boot': False,
+             'allow_resize_to_same_host': True},
+            context.NovaComputeVirtContext()())
+
+    def test_allow_resize_to_same_host_disabled(self):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'lucid'}
+        self.relation_ids.return_value = ['cloud-compute:0']
+        self.related_units.return_value = 'nova-cloud-controller/0'
+        self.test_relation.set({
+            'allow_resize_to_same_host': 'false',
+        })
+        self.assertEqual(
+            {'resume_guests_state_on_host_boot': False,
+             'allow_resize_to_same_host': False},
+            context.NovaComputeVirtContext()())
 
     @patch.object(context.uuid, 'uuid4')
     def test_libvirt_new_uuid(self, mock_uuid):
