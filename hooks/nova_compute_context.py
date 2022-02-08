@@ -323,6 +323,15 @@ class NovaComputeLibvirtContext(context.OSContextGenerator):
         # -2 means disable the injection of data
         ctxt['inject_partition'] = -1 if config('inject-password') else -2
 
+        if config("block-device-allocate-retries"):
+            ctxt["block_device_allocate_retries"] = config(
+                "block-device-allocate-retries"
+            )
+        if config("block-device-allocate-retries-interval"):
+            ctxt["block_device_allocate_retries_interval"] = config(
+                "block-device-allocate-retries-interval"
+            )
+
         return ctxt
 
 

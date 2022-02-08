@@ -376,6 +376,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
@@ -398,6 +399,32 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': True,
              'inject_partition': -1,
+             'block_device_allocate_retries': 300,
+             'default_ephemeral_format': 'ext4',
+             'reserved_host_disk': 0,
+             'reserved_host_memory': 512}, libvirt())
+
+    def test_libvirt_context_block_device_allocate_retries(self):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'focal'}
+        self.os_release.return_value = 'ussuri'
+        self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
+        self.test_config.set('block-device-allocate-retries', 120)
+        self.test_config.set('block-device-allocate-retries-interval', 5)
+        libvirt = context.NovaComputeLibvirtContext()
+
+        self.assertEqual(
+            {'libvirtd_opts': '',
+             'libvirt_user': 'libvirt',
+             'arch': platform.machine(),
+             'ksm': 'AUTO',
+             'kvm_hugepages': 0,
+             'listen_tls': 0,
+             'host_uuid': self.host_uuid,
+             'force_raw_images': True,
+             'inject_password': False,
+             'inject_partition': -2,
+             'block_device_allocate_retries': 120,
+             'block_device_allocate_retries_interval': 5,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
@@ -420,6 +447,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512,
@@ -445,6 +473,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512,
@@ -468,6 +497,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
@@ -497,6 +527,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
 
@@ -559,6 +590,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
@@ -589,6 +621,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
 
@@ -610,6 +643,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
@@ -633,6 +667,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
@@ -655,6 +690,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': False,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
@@ -769,6 +805,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'pci_passthrough_whitelist': 'mypcidevices',
              'virtio_net_tx_queue_size': 512,
              'virtio_net_rx_queue_size': 1024,
@@ -797,6 +834,7 @@ class NovaComputeContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4'}, libvirt())
 
     def test_cpu_dedicated_set(self):
@@ -820,6 +858,7 @@ class NovaComputeContextTests(CharmTestCase):
                     'force_raw_images': True,
                     'inject_password': False,
                     'inject_partition': -2,
+                    'block_device_allocate_retries': 300,
                     'default_ephemeral_format': 'ext4'}
 
         self.assertEqual(expected, libvirt())
@@ -1106,6 +1145,7 @@ class SerialConsoleContextTests(CharmTestCase):
              'force_raw_images': True,
              'inject_password': False,
              'inject_partition': -2,
+             'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())

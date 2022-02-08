@@ -883,3 +883,19 @@ options:
       .
       This option doesn't have any effect on clouds running
       a release < Rocky.
+  block-device-allocate-retries:
+    type: int
+    default: 300
+    description: |
+      Number of times to check for a volume to be available before
+      attaching it during server create. The timeout is calculated with
+      block-device-allocate-retries-interval(default: 3s) so the default
+      timeout with the charm is 15 minutes (300 retries at 3-seconds
+      interval).
+  block-device-allocate-retries-interval:
+    type: int
+    default:
+    description: |
+      Seconds between block device allocation retries. The default value
+      is 3. Please refer to the description of the
+      "block-device-allocate-retries" config for more details.
