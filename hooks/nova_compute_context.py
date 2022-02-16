@@ -970,8 +970,13 @@ class NovaComputePlacementContext(context.OSContextGenerator):
                     for rid in relation_ids('cloud-compute'):
                         for unit in related_units(rid):
                             rel = {'rid': rid, 'unit': unit}
-                            ctxt[ratio_config] = relation_get(ratio_config,
-                                                              **rel)
+                            # NOTE(jamespage):
+                            # nova-cloud-controller passes ratio values
+                            # without the initial_ prefix.
+                            ctxt[ratio_config] = relation_get(
+                                ratio_config.lstrip("initial_"),
+                                **rel
+                            )
         else:
             for ratio_config in ['cpu_allocation_ratio',
                                  'ram_allocation_ratio',

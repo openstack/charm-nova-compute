@@ -1315,3 +1315,47 @@ class NovaComputePlacementContextTest(CharmTestCase):
              'initial_cpu_allocation_ratio': None,
              'initial_ram_allocation_ratio': None,
              'initial_disk_allocation_ratio': None}, ctxt())
+
+    def test_allocation_ratio_defaults_pre_stein(self):
+        _allocation_ratios = {
+            'cpu_allocation_ratio': 8,
+            'ram_allocation_ratio': 24,
+            'disk_allocation_ratio': 32,
+        }
+        self.os_release.return_value = 'queens'
+        self.relation_ids.return_value = ['cloud-compute:0']
+        self.related_units.return_value = ['nova-cloud-controller/0']
+        self.relation_get.side_effect = (
+            lambda k, **kwargs: _allocation_ratios.get(k)
+        )
+        ctxt = context.NovaComputePlacementContext()
+
+        self.assertEqual(
+            {'cpu_allocation_ratio': 8,
+             'ram_allocation_ratio': 24,
+             'disk_allocation_ratio': 32,
+             'initial_cpu_allocation_ratio': None,
+             'initial_ram_allocation_ratio': None,
+             'initial_disk_allocation_ratio': None}, ctxt())
+
+    def test_allocation_ratio_defaults(self):
+        _allocation_ratios = {
+            'cpu_allocation_ratio': 8,
+            'ram_allocation_ratio': 24,
+            'disk_allocation_ratio': 32,
+        }
+        self.os_release.return_value = 'ussuri'
+        self.relation_ids.return_value = ['cloud-compute:0']
+        self.related_units.return_value = ['nova-cloud-controller/0']
+        self.relation_get.side_effect = (
+            lambda k, **kwargs: _allocation_ratios.get(k)
+        )
+        ctxt = context.NovaComputePlacementContext()
+
+        self.assertEqual(
+            {'cpu_allocation_ratio': None,
+             'ram_allocation_ratio': None,
+             'disk_allocation_ratio': None,
+             'initial_cpu_allocation_ratio': 8,
+             'initial_ram_allocation_ratio': 24,
+             'initial_disk_allocation_ratio': 32}, ctxt())
