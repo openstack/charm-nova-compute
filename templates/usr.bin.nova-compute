@@ -123,6 +123,7 @@
   /usr/lib/gcc/x86_64-linux-gnu/4.8/collect2 rix,
   /usr/lib{,32,64}/** mrw,
   /usr/lib{,32,64}/python{2,3}.[34567]/**.{pyc,so} mrw,
+  /var/lib/contrail/ports/* rw,
   /var/lib/nova/ r,
   /var/lib/nova/** rwk,
 {% if virt_type == 'lxd' %}
