@@ -115,6 +115,7 @@ from nova_compute_context import (
     NeutronPluginSubordinateConfigContext,
     NovaComputePlacementContext,
     NovaComputeSWTPMContext,
+    VirtMkfsContext,
 )
 
 import charmhelpers.contrib.openstack.vaultlocker as vaultlocker
@@ -263,6 +264,7 @@ BASE_RESOURCE_MAP = {
                      context.IdentityCredentialsContext(
                          rel_name='cloud-credentials'),
                      context.HostInfoContext(use_fqdn_hint_cb=use_fqdn_hint),
+                     VirtMkfsContext(),
                      ],
     },
     VENDORDATA_FILE: {
