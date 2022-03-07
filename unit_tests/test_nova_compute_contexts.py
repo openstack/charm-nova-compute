@@ -1436,3 +1436,30 @@ class NovaComputeSWTPMContextTest(CharmTestCase):
         self.assertEqual({
             'swtpm_enabled': False,
         }, ctxt())
+
+
+class NovaComputeVirtMkfsContext(CharmTestCase):
+
+    def setUp(self):
+        super(NovaComputeVirtMkfsContext, self).setUp(context, TO_PATCH)
+        self.config.side_effect = self.test_config.get
+        self.os_release.return_value = 'zed'
+
+    def test_cfg_none(self):
+        self.test_config.set('virt-mkfs-cmds', None)
+        ctxt = context.VirtMkfsContext()
+        self.assertEqual({}, ctxt())
+
+    def test_cfg_single(self):
+        self.test_config.set('virt-mkfs-cmds', 'default=mkfs.vfat')
+        ctxt = context.VirtMkfsContext()
+        self.assertEqual({'virt_mkfs': 'virt_mkfs = default=mkfs.vfat'},
+                         ctxt())
+
+    def test_cfg_multi(self):
+        self.test_config.set('virt-mkfs-cmds',
+                             'default=mkfs.ext4,windows=mkfs.ntfs')
+        ctxt = context.VirtMkfsContext()
+        self.assertEqual({'virt_mkfs': ('virt_mkfs = default=mkfs.ext4\n'
+                                        'virt_mkfs = windows=mkfs.ntfs')},
+                         ctxt())

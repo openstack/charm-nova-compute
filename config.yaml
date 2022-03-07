@@ -682,8 +682,19 @@ options:
     type: string
     default: ext4
     description: |
-      The default format an ephemeral volume will be formatted with on creation.
+      The default format used to create an ephemeral volume. This format
+      is used only if the volume ostype is default otherwise Nova
+      ostype defaults are used (ext4 for linux, ntfs for windows) and
+      these can be overriden using the virt-mkfs-cmds option.
       Possible values: ext2 ext3 ext4 xfs ntfs (only for Windows guests)
+  virt-mkfs-cmds:
+    type: string
+    default:
+    description: |
+      Nova-compute will default to using mkfs.vfat as the default method of
+      formatting disks e.g. ephemeral volumes. If alternate commands are
+      required they can be provided here as a comma-separated list with the
+      format <os_type>=<mkfs command> e.g. 'default=mkfs.ext4,windows=mkfs.ntfs'.
   encrypt:
     type: boolean
     default: False

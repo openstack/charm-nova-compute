@@ -889,6 +889,18 @@ class HostIPContext(context.OSContextGenerator):
         return ctxt
 
 
+class VirtMkfsContext(context.OSContextGenerator):
+    def __call__(self):
+        ctxt = {}
+        virt_mkfs = config('virt-mkfs-cmds')
+        if virt_mkfs:
+            # this is a "multi-value" option
+            ctxt['virt_mkfs'] = '\n'.join(["virt_mkfs = {}".format(line)
+                                           for line in virt_mkfs.split(',')])
+
+        return ctxt
+
+
 class NovaAPIAppArmorContext(context.AppArmorContext):
 
     def __init__(self):
