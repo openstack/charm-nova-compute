@@ -67,6 +67,7 @@
   /proc/*/net/ip_tables_names r,
   /proc/*/net/psched r,
   /proc/*/stat r,
+  /proc/@{pid}/mountinfo r,
   /proc/uptime r,
   /proc/version r,
   /proc/loadavg r,
