@@ -1251,6 +1251,43 @@ class NovaComputeUtilsTests(CharmTestCase):
         self.assertEqual(_full,
                          utils.services_to_pause_or_resume())
 
+    @patch.object(utils, 'service_restart')
+    @patch.object(utils, 'service_running')
+    @patch.object(utils, 'get_subordinate_services')
+    @patch.object(utils, 'is_unit_paused_set')
+    def test_restart_failed_subordinate_services(self, _is_unit_paused_set,
+                                                 _get_subordinate_services,
+                                                 _service_running,
+                                                 _service_restart):
+        _is_unit_paused_set.return_value = True
+        utils.restart_failed_subordinate_services()
+        _service_restart.assert_not_called()
+
+        # Validate that when a single service is not running, it is restarted
+        _service_restart.reset_mock()
+        _is_unit_paused_set.return_value = False
+        _get_subordinate_services.return_value = ['ceilometer-agent']
+        _service_running.return_value = False
+        utils.restart_failed_subordinate_services()
+        _service_restart.assert_called_once_with('ceilometer-agent')
+
+        # Validate that when multiple subordinate services exist, only ones
+        # that are stopped are restarted.
+        _service_restart.reset_mock()
+
+        def is_running(service):
+            if service == 'ceilometer-agent':
+                return True
+            else:
+                return False
+
+        _service_running.side_effect = is_running
+        _get_subordinate_services.return_value = ['ceilometer-agent', 'foo']
+        utils.restart_failed_subordinate_services()
+        _service_restart.assert_has_calls([
+            call('foo'),
+        ])
+
     @patch.object(utils, 'kv')
     def test_use_fqdn_hint(self, _kv):
         _kv().get.return_value = False
