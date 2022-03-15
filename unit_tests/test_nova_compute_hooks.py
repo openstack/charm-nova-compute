@@ -101,6 +101,7 @@ TO_PATCH = [
     'render',
     'remove_old_packages',
     'services',
+    'restart_failed_subordinate_services',
     'send_application_name',
 ]
 
@@ -518,6 +519,7 @@ class NovaComputeRelationsTests(CharmTestCase):
     def test_nova_ceilometer_relation_changed(self):
         hooks.nova_ceilometer_relation_changed()
         self.update_all_configs.assert_called()
+        self.restart_failed_subordinate_services.assert_called()
 
     def test_ceph_joined(self):
         self.libvirt_daemon.return_value = 'libvirt-bin'
@@ -907,6 +909,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         configs.write.assert_called_with('/etc/nova/nova.conf')
         service_restart_handler.assert_called_with(
             default_service='nova-compute')
+        self.restart_failed_subordinate_services.assert_called()
 
     @patch.object(hooks, 'service_restart_handler')
     @patch.object(hooks, 'CONFIGS')
@@ -919,6 +922,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         configs.write.assert_called_with('/etc/nova/nova.conf')
         service_restart_handler.assert_called_with(
             default_service='nova-compute')
+        self.restart_failed_subordinate_services.assert_called()
 
     @patch.object(hooks, 'service_restart_handler')
     @patch.object(hooks, 'CONFIGS')
@@ -931,6 +935,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         configs.write.assert_called_with('/etc/nova/nova.conf')
         service_restart_handler.assert_called_with(
             default_service='nova-compute')
+        self.restart_failed_subordinate_services.assert_called()
 
     @patch.object(hooks, 'get_hugepage_number')
     def test_neutron_plugin_joined_relid(self, get_hugepage_number):
