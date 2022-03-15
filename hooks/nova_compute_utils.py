@@ -43,6 +43,7 @@ from charmhelpers.core.fstab import Fstab
 from charmhelpers.core.host import (
     mkdir,
     service_restart,
+    service_running,
     lsb_release,
     rsync,
     CompareHostReleases,
@@ -445,6 +446,27 @@ def services():
 
     return list(set(chain(*restart_map().values()))
                 | get_subordinate_services())
+
+
+def restart_failed_subordinate_services():
+    '''
+    Restarts all subordinate services if they aren't running.
+
+    Doesn't do anything if the unit is paused.
+
+    Subordinate charms can advertise a list of services to this principal charm
+    so that this principal charm can properly manage them when pausing,
+    resuming and upgrading.
+
+    It can be useful to call this function once a relation with a subordinate
+    charm has been established, in order to mitigate a race condition described
+    in lp:1947585 in which the subordinate services may have failed to come up
+    if they were started before the principal services.
+    '''
+    if not is_unit_paused_set():
+        for s in get_subordinate_services():
+            if not service_running(s):
+                service_restart(s)
 
 
 def register_configs():
