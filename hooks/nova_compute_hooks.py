@@ -33,6 +33,7 @@ from charmhelpers.core.hookenv import (
     local_unit,
     log,
     DEBUG,
+    INFO,
     relation_ids,
     remote_service_name,
     related_units,
@@ -55,6 +56,7 @@ from charmhelpers.core.host import (
     is_container,
 )
 from charmhelpers.fetch import (
+    add_source,
     apt_install,
     apt_purge,
     apt_update,
@@ -67,6 +69,7 @@ from charmhelpers.contrib.openstack.utils import (
     CompareOpenStackReleases,
     configure_installation_source,
     is_unit_paused_set,
+    get_source_and_pgp_key,
     openstack_upgrade_available,
     os_release,
     pausable_restart_on_change as restart_on_change,
@@ -157,6 +160,7 @@ def install():
     status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+    configure_extra_repositories(config('extra-repositories'))
 
     status_set('maintenance', 'Installing apt packages')
     apt_update()
@@ -171,6 +175,36 @@ def install():
         db.flush()
 
     install_vaultlocker()
+
+
+def configure_extra_repositories(extra_repositories):
+    """Configures extra repositories to be added to the deployment.
+
+    Evaluates the config option 'extra-repositories' and configures the
+    additional installation sources as appropriate.
+
+    :param extra_repositories: extra repositories to install
+    :type extra_repositories: str
+    :raises: SourceConfigError if there is an error with the extra repositories
+    """
+    if not extra_repositories:
+        log('No additional repositories to configure.', level=DEBUG)
+        return
+
+    for repo in extra_repositories.split(','):
+        if not repo:
+            continue
+
+        repo = repo.strip()
+        log('Configuring additional repository: "{}"'.format(repo),
+            level=DEBUG)
+        source, key = get_source_and_pgp_key(repo)
+
+        # Note: the add_source should fail and will result in the hook failing
+        # which is better to correct at this point if there is a
+        # configuration error rather than believing the repository to be
+        # configured.
+        add_source(source, key, fail_invalid=True)
 
 
 @hooks.hook('config-changed')
@@ -188,6 +222,11 @@ def config_changed():
     if config('prefer-ipv6'):
         status_set('maintenance', 'configuring ipv6')
         assert_charm_supports_ipv6()
+
+    if config('extra-repositories'):
+        log('Configuring extra repositories', level=INFO)
+        configure_extra_repositories(config('extra-repositories'))
+        apt_update()
 
     if (migration_enabled() and
             config('migration-auth-type') not in MIGRATION_AUTH_TYPES):

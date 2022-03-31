@@ -49,6 +49,7 @@ TO_PATCH = [
     'related_units',
     'remote_service_name',
     # charmhelpers.core.host
+    'add_source',
     'apt_install',
     'apt_purge',
     'apt_update',
@@ -115,15 +116,17 @@ class NovaComputeRelationsTests(CharmTestCase):
         self.get_relation_ip.return_value = '10.0.0.50'
         self.is_container.return_value = False
 
+    @patch.object(hooks, 'configure_extra_repositories')
     @patch.object(hooks, 'kv')
     @patch.object(hooks, 'os_release')
-    def test_install_hook(self, _os_release, _kv):
+    def test_install_hook(self, _os_release, _kv, _configure_extra_repos):
         repo = 'cloud:precise-grizzly'
         self.test_config.set('openstack-origin', repo)
         self.determine_packages.return_value = ['foo', 'bar']
         _os_release.return_value = 'rocky'
         hooks.install()
         self.configure_installation_source.assert_called_with(repo)
+        _configure_extra_repos.assert_called_with(None)
         self.assertTrue(self.apt_update.called)
         self.apt_install.assert_called_with(['foo', 'bar'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
@@ -133,6 +136,58 @@ class NovaComputeRelationsTests(CharmTestCase):
         hooks.install()
         kv.set.assert_called_once_with(hooks.USE_FQDN_KEY, True)
         kv.flush.assert_called_once_with()
+
+    def test_configure_extra_repositories(self):
+        """Tests configuring of extra repositories"""
+        # Validate that invalid strings do not attempt to add sources
+        for repo in [None, '']:
+            hooks.configure_extra_repositories(repo)
+            self.add_source.assert_not_called()
+
+        # Validate that a single source is added
+        self.add_source.reset_mock()
+        hooks.configure_extra_repositories('ppa:user/repo')
+        self.add_source.assert_called_with('ppa:user/repo', None,
+                                           fail_invalid=True)
+
+        # Validate that multiple sources are added
+        self.add_source.reset_mock()
+        repositories = 'ppa:user1/repo2, ppa:user2/repo1'
+        hooks.configure_extra_repositories(repositories)
+        self.add_source.assert_has_calls([
+            call('ppa:user1/repo2', None, fail_invalid=True),
+            call('ppa:user2/repo1', None, fail_invalid=True),
+        ])
+
+        # Validate that multiple source types and empty string
+        self.add_source.reset_mock()
+        repositories = (
+            'deb http://myserver/path/to/repo stable main|ABCDEFG,'
+            'ppa:team/foo,'
+        )
+        hooks.configure_extra_repositories(repositories)
+        self.add_source.assert_has_calls([
+            call('deb http://myserver/path/to/repo stable main', 'ABCDEFG',
+                 fail_invalid=True),
+            call('ppa:team/foo', None, fail_invalid=True),
+        ])
+
+        # Validate an error raises an error
+        self.add_source.reset_mock()
+        self.add_source.side_effect = Exception('Fail')
+        self.assertRaises(Exception, hooks.configure_extra_repositories,
+                          'malformed')
+
+    @patch.object(hooks, 'configure_extra_repositories')
+    @patch.object(hooks, 'ceph_changed')
+    @patch.object(hooks, 'neutron_plugin_joined')
+    def test_config_changed_with_extra_repositories(
+            self, neutron_plugin_joined, ceph_changed,
+            configure_extra_repositories):
+        self.test_config.set('extra-repositories', 'ppa:someuser/repo')
+        hooks.config_changed()
+        configure_extra_repositories.assert_called_with('ppa:someuser/repo')
+        self.apt_update.assert_called()
 
     @patch.object(hooks, 'ceph_changed')
     @patch.object(hooks, 'neutron_plugin_joined')
