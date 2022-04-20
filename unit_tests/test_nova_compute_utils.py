@@ -658,16 +658,18 @@ class NovaComputeUtilsTests(CharmTestCase):
         rendered_config.read_string(content)
         return rendered_config
 
+    @patch.object(compute_context, 'config')
     @patch.object(compute_context, 'relation_ids')
     @patch.object(compute_context, 'os_release')
     @patch.object(utils, 'nova_metadata_requirement')
     def test_resource_map_ironic_train(self, _metadata, _os_release,
-                                       _relation_ids):
+                                       _relation_ids, cctxt_config):
         _metadata.return_value = (True, None)
         self.relation_ids.return_value = []
         self.os_release.return_value = 'train'
         _os_release.return_value = 'train'
         self.test_config.set('virt-type', 'ironic')
+        cctxt_config.side_effect = self.test_config.get
         result = utils.resource_map()
         self.assertTrue(utils.NOVA_COMPUTE_CONF in result)
         self.assertFalse(utils.QEMU_CONF in result)
