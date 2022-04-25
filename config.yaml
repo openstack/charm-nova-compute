@@ -38,6 +38,18 @@ options:
       NOTE: updating this setting to a source that is known to provide
       a later version of OpenStack will trigger a software upgrade.
       .
+  extra-repositories:
+    type: string
+    default:
+    description: |
+      Additional apt repositories to configure as installation sources for apt.
+      The acceptable format of this option are those values accepted by the
+      `add-apt-repository` command. Multiple repositories can be provided by
+      separating the entries with a comma. Examples include:
+
+      ppa:user/repository
+      deb http://myserver/path/to/repo stable main
+      ppa:userA/repository1, ppa:userB/repository2
   action-managed-upgrade:
     type: boolean
     default: False
