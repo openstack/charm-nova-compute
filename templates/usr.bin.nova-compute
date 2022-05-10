@@ -76,6 +76,7 @@
   /run/lock/nova/nova-iptables wk,
   /run/lock/qemu-nbd-nbd* w,
   /run/openvswitch/db.sock rw,
+  /run/uuidd/request rw,
   /{usr/,}sbin/blockdev rix,
   /{usr/,}sbin/brctl rix,
   /{usr/,}sbin/iscsiadm rix,
