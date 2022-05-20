@@ -1,28 +1,14 @@
 charm_name: nova-compute
 
 smoke_bundles:
-- bionic-train
+- ceph: focal-ussuri
 
 gate_bundles:
-- ceph: groovy-victoria
-- ceph: focal-wallaby
-- ceph: focal-victoria
 - ceph: focal-ussuri
 - bionic-ussuri
 - bionic-train
-- bionic-stein
-- bionic-queens
-- xenial-mitaka
 
-dev_bundles:
-- trusty-mitaka
-- xenial-ocata
-- xenial-pike
-- xenial-queens
-- bionic-rocky
-- ceph: focal-xena
-- ceph: hirsute-wallaby
-- ceph: impish-xena
+dev_bundles: []
 
 configure:
 - ceph:
@@ -56,6 +42,4 @@ tests:
 - zaza.openstack.charm_tests.nova.tests.SecurityTests
 
 tests_options:
-  force_deploy:
-    - groovy-victoria
-    - impish-xena
+  force_deploy: []
