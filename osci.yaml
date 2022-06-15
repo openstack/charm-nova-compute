@@ -6,8 +6,7 @@
       jobs:
       - ceph-focal-xena_nova
       - ceph-focal-yoga_nova
-      - ceph-jammy-yoga_nova:
-          voting: false
+      - ceph-jammy-yoga_nova
     vars:
       needs_charm_build: true
       charm_build_name: nova-compute
