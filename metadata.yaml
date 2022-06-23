@@ -11,12 +11,7 @@ description: |
 tags:
 - openstack
 series:
-- xenial
 - bionic
-- focal
-- groovy
-- hirsute
-- impish
 provides:
   cloud-compute:
     interface: nova-compute

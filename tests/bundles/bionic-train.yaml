@@ -1,3 +1,5 @@
+local_overlay_enabled: False
+
 series: bionic
 relations:
 - - nova-compute:image-service
@@ -46,54 +48,63 @@ relations:
   - nova-cloud-controller:placement
 applications:
   rabbitmq-server:
-    charm: cs:~openstack-charmers/rabbitmq-server
+    charm: ch:rabbitmq-server
     num_units: 1
+    channel: 3.6/edge
   percona-cluster:
-    charm: cs:~openstack-charmers/percona-cluster
+    charm: ch:percona-cluster
     num_units: 1
     options:
       max-connections: 1000
       innodb-buffer-pool-size: 256M
+    channel: 5.7/edge
   nova-cloud-controller:
-    charm: cs:~openstack-charmers/nova-cloud-controller
+    charm: ch:nova-cloud-controller
     num_units: 1
     constraints: mem=4G
     options:
       openstack-origin: cloud:bionic-train
       network-manager: Neutron
       debug: true
+    channel: train/edge
   neutron-api:
-    charm: cs:~openstack-charmers/neutron-api
+    charm: ch:neutron-api
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
       flat-network-providers: physnet1
       neutron-security-groups: true
+    channel: train/edge
   keystone:
-    charm: cs:~openstack-charmers/keystone
+    charm: ch:keystone
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
+    channel: train/edge
   neutron-gateway:
-    charm: cs:~openstack-charmers/neutron-gateway
+    charm: ch:neutron-gateway
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
       bridge-mappings: physnet1:br-ex
+    channel: train/edge
   glance:
-    charm: cs:~openstack-charmers/glance
+    charm: ch:glance
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
+    channel: train/edge
   neutron-openvswitch:
-    charm: cs:~openstack-charmers/neutron-openvswitch
+    charm: ch:neutron-openvswitch
+    channel: train/edge
   placement:
-    charm: cs:~openstack-charmers/placement
+    charm: ch:placement
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
+    channel: train/edge
   nova-compute:
-    charm: ../../../nova-compute
+    charm: ../../nova-compute.charm
     num_units: 1
     constraints: mem=4G cores=4
     options:

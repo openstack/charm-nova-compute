@@ -1,62 +1,11 @@
 - project:
     templates:
-      - charm-unit-jobs
-    check:
-      jobs:
-      - ceph-impish-xena_nova:
-          voting: false
-      - ceph-hirsute-wallaby_nova
-      - ceph-focal-xena_nova:
-          voting: false
-      - ceph-focal-wallaby_nova
-      - ceph-focal-victoria_nova
-      - ceph-focal-ussuri_nova
-      - bionic-ussuri
-      - bionic-train
-      - bionic-stein
-      - bionic-queens
-      - xenial-mitaka
-
-- job:
-    name: ceph-focal-ussuri_nova
-    parent: func-target
-    dependencies: &smoke-jobs
-      - bionic-ussuri
+      - charm-unit-jobs-py36
+      - charm-queens-functional-jobs
+      - charm-rocky-functional-jobs
+      - charm-stein-functional-jobs
+      - charm-train-functional-jobs
     vars:
-      tox_extra_args: ceph:focal-ussuri
-- job:
-    name: ceph-focal-victoria_nova
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:focal-victoria
-- job:
-    name: ceph-focal-wallaby_nova
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:focal-wallaby
-- job:
-    name: ceph-focal-xena_nova
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:focal-xena
-- job:
-    name: ceph-groovy-victoria_nova
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:groovy-victoria
-- job:
-    name: ceph-hirsute-wallaby_nova
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:hirsute-wallaby
-- job:
-    name: ceph-impish-xena_nova
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:impish-xena
+      needs_charm_build: true
+      charm_build_name: nova-compute
+      build_type: charmcraft

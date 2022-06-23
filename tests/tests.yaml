@@ -4,34 +4,14 @@ smoke_bundles:
 - bionic-train
 
 gate_bundles:
-- ceph: groovy-victoria
-- ceph: focal-wallaby
-- ceph: focal-victoria
-- ceph: focal-ussuri
-- bionic-ussuri
 - bionic-train
 - bionic-stein
-- bionic-queens
-- xenial-mitaka
-
-dev_bundles:
-- trusty-mitaka
-- xenial-ocata
-- xenial-pike
-- xenial-queens
 - bionic-rocky
-- ceph: focal-xena
-- ceph: hirsute-wallaby
-- ceph: impish-xena
+- bionic-queens
+
+dev_bundles: []
 
 configure:
-- ceph:
-  - zaza.openstack.charm_tests.glance.setup.add_cirros_image
-  - zaza.openstack.charm_tests.glance.setup.add_lts_image
-  - zaza.openstack.charm_tests.keystone.setup.add_demo_user
-  - zaza.openstack.charm_tests.neutron.setup.basic_overcloud_network
-  - zaza.openstack.charm_tests.nova.setup.create_flavors
-  - zaza.openstack.charm_tests.nova.setup.manage_ssh_key
 - zaza.openstack.charm_tests.glance.setup.add_cirros_image
 - zaza.openstack.charm_tests.glance.setup.add_lts_image
 - zaza.openstack.charm_tests.keystone.setup.add_demo_user
@@ -40,14 +20,6 @@ configure:
 - zaza.openstack.charm_tests.nova.setup.manage_ssh_key
 
 tests:
-- ceph:
-  - zaza.openstack.charm_tests.nova.tests.CirrosGuestCreateTest
-  - zaza.openstack.charm_tests.nova.tests.LTSGuestCreateTest
-  - zaza.openstack.charm_tests.nova.tests.CloudActions
-  - zaza.openstack.charm_tests.nova.tests.NovaCompute
-  - zaza.openstack.charm_tests.nova.tests.SecurityTests
-  - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
-  - zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation
 - zaza.openstack.charm_tests.nova.tests.CirrosGuestCreateTest
 - zaza.openstack.charm_tests.nova.tests.LTSGuestCreateTest
 - zaza.openstack.charm_tests.nova.tests.CloudActions
@@ -56,6 +28,4 @@ tests:
 - zaza.openstack.charm_tests.nova.tests.SecurityTests
 
 tests_options:
-  force_deploy:
-    - groovy-victoria
-    - impish-xena
+  force_deploy: []
