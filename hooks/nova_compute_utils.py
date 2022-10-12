@@ -1000,6 +1000,9 @@ def check_optional_config_and_relations(configs):
         except ValueError as e:
             return ('blocked', 'Invalid configuration: {}'.format(str(e)))
 
+    if len(relation_ids('storage-backend')) > 1:
+        return 'blocked', "Multiple storage backends are not supported"
+
     # return 'unknown' as the lowest priority to not clobber an existing
     # status.
     return "unknown", ""

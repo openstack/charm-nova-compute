@@ -54,6 +54,9 @@ requires:
     interface: vault-kv
   ironic-api:
     interface: baremetal
+  storage-backend:
+    interface: storage-backend
+    scope: container
 peers:
   compute-peer:
     interface: nova
