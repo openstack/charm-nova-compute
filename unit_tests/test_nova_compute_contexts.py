@@ -232,6 +232,7 @@ class NovaComputeContextTests(CharmTestCase):
             'network_manager': 'neutron',
             'network_manager_config': {
                 'api_version': '2.0',
+                'admin_role': 'Admin',
                 'auth_protocol': 'https',
                 'service_protocol': 'http',
                 'auth_port': '5000',
@@ -252,6 +253,7 @@ class NovaComputeContextTests(CharmTestCase):
             'admin_tenant_name': 'admin',
             'admin_user': 'admin',
             'admin_password': 'openstack',
+            'admin_role': 'Admin',
             'admin_domain_name': 'admin_domain',
             'auth_port': '5000',
             'auth_protocol': 'https',
@@ -281,6 +283,7 @@ class NovaComputeContextTests(CharmTestCase):
             'network_manager': 'neutron',
             'network_manager_config': {
                 'api_version': '2.0',
+                'admin_role': 'Admin',
                 'auth_protocol': 'https',
                 'service_protocol': 'http',
                 'auth_port': '5000',
@@ -302,6 +305,7 @@ class NovaComputeContextTests(CharmTestCase):
             'admin_tenant_name': 'admin',
             'admin_user': 'admin',
             'admin_password': 'openstack',
+            'admin_role': 'Admin',
             'admin_domain_name': 'admin_domain',
             'auth_port': '5000',
             'auth_protocol': 'https',
@@ -330,6 +334,7 @@ class NovaComputeContextTests(CharmTestCase):
         cloud_compute = context.CloudComputeContext()
         ex_ctxt = {
             'api_version': '2.0',
+            'admin_role': 'Admin',
             'auth_protocol': 'https',
             'service_protocol': 'http',
             'auth_port': '5000',
