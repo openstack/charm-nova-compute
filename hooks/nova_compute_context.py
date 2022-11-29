@@ -654,6 +654,7 @@ class CloudComputeContext(context.OSContextGenerator):
                         'api_version', **rel) or '2.0',
                     'neutron_plugin': _neutron_plugin(),
                     'neutron_url': url,
+                    'admin_role': relation_get('admin_role', **rel) or 'Admin',
                 }
                 # DNS domain is optional
                 dns_domain = relation_get('dns_domain', **rel)
@@ -772,6 +773,7 @@ class CloudComputeContext(context.OSContextGenerator):
                 ctxt['admin_user'] = net_manager.get('neutron_admin_username')
                 ctxt['admin_password'] = net_manager.get(
                     'neutron_admin_password')
+                ctxt['admin_role'] = net_manager.get('admin_role')
                 ctxt['auth_protocol'] = net_manager.get('auth_protocol')
                 ctxt['auth_host'] = net_manager.get('keystone_host')
                 ctxt['auth_port'] = net_manager.get('auth_port')
