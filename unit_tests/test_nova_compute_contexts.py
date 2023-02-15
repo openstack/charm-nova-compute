@@ -1674,3 +1674,106 @@ class NovaComputeVirtMkfsContext(CharmTestCase):
         self.assertEqual({'virt_mkfs': ('virt_mkfs = default=mkfs.ext4\n'
                                         'virt_mkfs = windows=mkfs.ntfs')},
                          ctxt())
+
+
+class TestNovaComputeHostInfoContext(CharmTestCase):
+    def setUp(self):
+        super().setUp(context, TO_PATCH)
+        self.config.side_effect = self.test_config.get
+        self.os_release.return_value = 'ussuri'
+
+    def test_use_fqdn_hint(self):
+        self.kv().get.return_value = False
+        ctxt = context.NovaComputeHostInfoContext
+        self.assertEqual(ctxt._use_fqdn_hint(), False)
+        self.kv().get.return_value = True
+        self.assertEqual(ctxt._use_fqdn_hint(), True)
+
+    def test_set_fqdn_hint(self):
+        context.NovaComputeHostInfoContext.set_fqdn_hint(True)
+        self.kv().set.assert_called_with(
+            context.NovaComputeHostInfoContext.USE_FQDN_KEY, True
+        )
+
+    def test_set_record_fqdn_hint(self):
+        context.NovaComputeHostInfoContext.set_record_fqdn_hint(True)
+        self.kv().set.assert_called_with(
+            context.NovaComputeHostInfoContext.RECORD_FQDN_KEY, True
+        )
+
+    def test_get_record_fqdn_hint(self):
+        self.kv().get.side_effect = dict().get
+        self.assertFalse(
+            context.NovaComputeHostInfoContext.get_record_fqdn_hint()
+        )
+        data = {context.NovaComputeHostInfoContext.RECORD_FQDN_KEY: True}
+        self.kv().get.side_effect = lambda x, y: data[x]
+        self.assertTrue(
+            context.NovaComputeHostInfoContext.get_record_fqdn_hint()
+        )
+
+    @patch('socket.getaddrinfo')
+    @patch('socket.gethostname')
+    def test_get_canonical_name_gethostname(self, gethostname, getaddrinfo):
+        gethostname.return_value = 'bar'
+
+        def raise_oserror(name, *args, **kwargs):
+            self.assertEqual(name, 'bar')
+            raise OSError()
+
+        getaddrinfo.side_effect = raise_oserror
+        data = {
+            context.NovaComputeHostInfoContext.USE_FQDN_KEY: True,
+            context.NovaComputeHostInfoContext.RECORD_FQDN_KEY: True,
+        }
+        self.kv().get.side_effect = lambda x, y: data.get(x, y)
+        self.kv().set.side_effect = lambda x, y: data.__setitem__(x, y)
+        ctxt = context.NovaComputeHostInfoContext()
+        self.assertEqual(ctxt._get_canonical_name('bar'), '')
+
+        def fake_getaddrinfo(name, *args, **kwargs):
+            self.assertEqual(name, 'foobar')
+            return [[0, 1, 2, 'bar.example.com']]
+
+        getaddrinfo.reset_mock()
+        getaddrinfo.side_effect = fake_getaddrinfo
+        self.assertEqual(ctxt._get_canonical_name('foobar'), 'bar.example.com')
+        gethostname.return_value = 'foobar'
+        self.assertEqual(ctxt(),
+                         {'host_fqdn': 'bar.example.com',
+                          'host': 'foobar',
+                          'use_fqdn_hint': True})
+
+    @patch('socket.getaddrinfo')
+    @patch('socket.gethostname')
+    def test_call_unstable_hostname(self, gethostname, getaddrinfo):
+
+        def raise_oserror(name, *args, **kwargs):
+            raise OSError()
+
+        def fake_getaddrinfo(name, *args, **kwargs):
+            return [[0, 1, 2, 'bar.example.com']]
+
+        getaddrinfo.side_effect = raise_oserror
+        gethostname.return_value = 'bar'
+        data = {
+            context.NovaComputeHostInfoContext.USE_FQDN_KEY: True,
+            context.NovaComputeHostInfoContext.RECORD_FQDN_KEY: True,
+        }
+        self.kv().get.side_effect = lambda x, y: data.get(x, y)
+        self.kv().set.side_effect = lambda x, y: data.__setitem__(x, y)
+        ctxt = context.NovaComputeHostInfoContext()
+        self.assertEqual(ctxt(),
+                         {'host_fqdn': 'bar',
+                          'host': 'bar',
+                          'use_fqdn_hint': True})
+        # After the first run socket.getaddrinfo() returns a valid fqdn
+        # provided by the DNS, but by this time the host_fqdn is stored and
+        # re-used.
+        getaddrinfo.reset_mock()
+        getaddrinfo.side_effect = fake_getaddrinfo
+        self.assertEqual(ctxt(),
+                         {'host_fqdn': 'bar',
+                          'host': 'bar',
+                          'use_fqdn_hint': True})
+        getaddrinfo.assert_not_called()

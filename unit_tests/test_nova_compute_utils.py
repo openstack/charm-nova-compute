@@ -1477,13 +1477,6 @@ class NovaComputeUtilsTests(CharmTestCase):
             call('foo'),
         ])
 
-    @patch.object(utils, 'kv')
-    def test_use_fqdn_hint(self, _kv):
-        _kv().get.return_value = False
-        self.assertEquals(utils.use_fqdn_hint(), False)
-        _kv().get.return_value = True
-        self.assertEquals(utils.use_fqdn_hint(), True)
-
     @patch.object(utils, 'render')
     def test_install_mount_override(self, render):
         utils.install_mount_override('/srv/test')

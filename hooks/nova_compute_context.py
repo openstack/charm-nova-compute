@@ -17,7 +17,13 @@ import os
 import platform
 import shutil
 import subprocess
+import socket
 import uuid
+
+from typing import (
+    Dict,
+    Optional,
+)
 
 from charmhelpers.core.unitdata import kv
 from charmhelpers.contrib.openstack import context
@@ -1085,4 +1091,92 @@ class NovaComputeSWTPMContext(context.OSContextGenerator):
                 'swtpm_enabled': config('enable-vtpm'),
             }
 
+        return ctxt
+
+
+class NovaComputeHostInfoContext(context.HostInfoContext):
+
+    USE_FQDN_KEY = 'nova-compute-charm-use-fqdn'
+    RECORD_FQDN_KEY = 'nova-compute-charm-record-fqdn'
+    FQDN_KEY = 'nova-compute-charm-fqdn'
+
+    def __init__(self):
+        super().__init__(use_fqdn_hint_cb=self._use_fqdn_hint)
+
+    @classmethod
+    def _use_fqdn_hint(cls):
+        """Hint for whether FQDN should be used for agent registration
+
+        :returns: True or False
+        :rtype: bool
+        """
+        db = kv()
+        return db.get(cls.USE_FQDN_KEY, False)
+
+    @classmethod
+    def set_fqdn_hint(cls, value: bool):
+        """Set FQDN hint.
+
+        :param value: the value to set the FQDN hint to
+        """
+        db = kv()
+        db.set(cls.USE_FQDN_KEY, value)
+        db.flush()
+
+    @classmethod
+    def set_record_fqdn_hint(cls, value: bool):
+        """Set the hint to record the FQDN and reuse it on every call.
+
+        :param value: the value to the record FQDN hint to.
+        """
+        db = kv()
+        db.set(cls.RECORD_FQDN_KEY, value)
+        db.flush()
+
+    @classmethod
+    def get_record_fqdn_hint(cls) -> bool:
+        """Get the hint to record the FQDN."""
+        db = kv()
+        return db.get(cls.RECORD_FQDN_KEY, False)
+
+    def set_record_fqdn(self, fqdn: str):
+        """Store in the unit's DB the FQDN.
+
+        :param fqdn: the FQDN to store.
+        """
+        db = kv()
+        db.set(self.FQDN_KEY, fqdn)
+        db.flush()
+
+    def get_record_fqdn(self) -> Optional[str]:
+        """Get the stored FQDN."""
+        db = kv()
+        return db.get(self.FQDN_KEY, None)
+
+    def __call__(self) -> Dict[str, str]:
+        """Generate host info context.
+
+        Extends the __call__() method to save the host fqdn used in the first
+        run when the self.get_record_fqdn_hint() returns True, this allows to
+        give a stable hostname to the nova-compute service over its entire
+        life (see LP: #1896630).
+
+        :returns: context with host info
+        """
+        name = socket.gethostname()
+        if self.get_record_fqdn_hint():
+            if not self.get_record_fqdn():
+                log('Saving host fqdn', level=DEBUG)
+                self.set_record_fqdn(self._get_canonical_name(name) or name)
+            host_fqdn = self.get_record_fqdn()
+            log('Re-using saved host fqdn stored: %s' % host_fqdn, level=DEBUG)
+        else:
+            host_fqdn = self._get_canonical_name(name) or name
+
+        ctxt = {
+            'host_fqdn': host_fqdn,
+            'host': name,
+            'use_fqdn_hint': (
+                self.use_fqdn_hint_cb() if self.use_fqdn_hint_cb else False)
+        }
         return ctxt
