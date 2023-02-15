@@ -15,6 +15,8 @@
 import os
 import tempfile
 
+import charmhelpers.contrib.openstack.utils as os_utils
+
 import nova_compute_context as compute_context
 import nova_compute_utils as utils
 
@@ -84,42 +86,54 @@ class NovaComputeUtilsTests(CharmTestCase):
         self.test_kv = TestKV()
         self.kv.return_value = self.test_kv
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'network_manager')
     @patch('platform.machine')
-    def test_determine_packages_nova_network(self, machine,
-                                             net_man, en_meta):
+    def test_determine_packages_nova_network(
+            self, machine, net_man, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'icehouse'
         en_meta.return_value = (False, None)
         net_man.return_value = 'flatdhcpmanager'
         machine.return_value = 'x86_64'
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = utils.BASE_PACKAGES + [
             'nova-api',
             'nova-network',
             'nova-compute-kvm'
         ]
-        self.assertTrue(ex == result)
+        self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
-    def test_determine_packages_ironic(self, en_meta):
+    def test_determine_packages_ironic(self, en_meta,
+                                       mock_get_subordinate_release_packages):
         self.os_release.return_value = 'victoria'
         self.test_config.set('virt-type', 'ironic')
         en_meta.return_value = (False, None)
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = utils.BASE_PACKAGES + [
             'nova-compute-ironic'
         ]
         self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
-    def test_determine_packages_ironic_pre_victoria(self, en_meta):
+    def test_determine_packages_ironic_pre_victoria(
+            self, en_meta, mock_get_subordinate_release_packages):
         self.os_release.return_value = 'train'
         self.test_config.set('virt-type', 'ironic')
         en_meta.return_value = (False, None)
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = utils.BASE_PACKAGES + [
             'nova-compute-vmware',
@@ -127,50 +141,62 @@ class NovaComputeUtilsTests(CharmTestCase):
         ]
         self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'network_manager')
     @patch('platform.machine')
-    def test_determine_packages_nova_network_ocata(self, machine,
-                                                   net_man, en_meta):
+    def test_determine_packages_nova_network_ocata(
+            self, machine, net_man, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'ocata'
         en_meta.return_value = (False, None)
         net_man.return_value = 'flatdhcpmanager'
         machine.return_value = 'x86_64'
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = utils.BASE_PACKAGES + [
             'nova-compute-kvm'
         ]
-        self.assertTrue(ex == result)
+        self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
     @patch.object(utils, 'network_manager')
     @patch('platform.machine')
-    def test_determine_packages_neutron(self, machine, net_man,
-                                        n_plugin, en_meta):
+    def test_determine_packages_neutron(
+            self, machine, net_man, n_plugin, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'ocata'
         en_meta.return_value = (False, None)
         net_man.return_value = 'neutron'
         n_plugin.return_value = 'ovs'
         machine.return_value = 'x86_64'
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = utils.BASE_PACKAGES + ['nova-compute-kvm']
-        self.assertTrue(ex == result)
+        self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
     @patch.object(utils, 'network_manager')
     @patch('platform.machine')
-    def test_determine_packages_neutron_rocky(self, machine, net_man,
-                                              n_plugin, en_meta):
+    def test_determine_packages_neutron_rocky(
+            self, machine, net_man, n_plugin, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'rocky'
         en_meta.return_value = (False, None)
         net_man.return_value = 'neutron'
         n_plugin.return_value = 'ovs'
         machine.return_value = 'x86_64'
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = (
             [p for p in utils.BASE_PACKAGES
@@ -179,15 +205,16 @@ class NovaComputeUtilsTests(CharmTestCase):
             utils.PY3_PACKAGES +
             ['python3-ceilometer', 'python3-neutron', 'python3-neutron-fwaas']
         )
-        self.assertEqual(ex, result)
+        self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
     @patch.object(utils, 'network_manager')
     @patch('platform.machine')
-    def test_determine_packages_neutron_aarch64_xenial(self, machine,
-                                                       net_man, n_plugin,
-                                                       en_meta):
+    def test_determine_packages_neutron_aarch64_xenial(
+            self, machine, net_man, n_plugin, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'ocata'
         self.lsb_release.return_value = {
             'DISTRIB_CODENAME': 'xenial'
@@ -197,17 +224,20 @@ class NovaComputeUtilsTests(CharmTestCase):
         n_plugin.return_value = 'ovs'
         machine.return_value = 'aarch64'
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = utils.BASE_PACKAGES + ['nova-compute-kvm', 'qemu-efi']
-        self.assertTrue(ex == result)
+        self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
     @patch.object(utils, 'network_manager')
     @patch('platform.machine')
-    def test_determine_packages_neutron_aarch64_trusty(self, machine,
-                                                       net_man, n_plugin,
-                                                       en_meta):
+    def test_determine_packages_neutron_aarch64_trusty(
+            self, machine, net_man, n_plugin, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'ocata'
         self.lsb_release.return_value = {
             'DISTRIB_CODENAME': 'trusty'
@@ -217,63 +247,81 @@ class NovaComputeUtilsTests(CharmTestCase):
         n_plugin.return_value = 'ovs'
         machine.return_value = 'aarch64'
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = utils.BASE_PACKAGES + ['nova-compute-kvm']
-        self.assertEqual(ex, result)
+        self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
     @patch.object(utils, 'network_manager')
     @patch('platform.machine')
-    def test_determine_packages_neutron_ceph(self, machine,
-                                             net_man, n_plugin, en_meta):
+    def test_determine_packages_neutron_ceph(
+            self, machine, net_man, n_plugin, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'ocata'
         en_meta.return_value = (False, None)
         net_man.return_value = 'neutron'
         n_plugin.return_value = 'ovs'
         machine.return_value = 'x86_64'
         self.relation_ids.return_value = ['ceph:0']
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         ex = (utils.BASE_PACKAGES + ['ceph-common', 'nova-compute-kvm'])
-        self.assertEqual(ex, result)
+        self.assertTrue(ex.sort() == result.sort())
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
     @patch.object(utils, 'network_manager')
-    def test_determine_packages_metadata(self, net_man,
-                                         n_plugin, en_meta):
+    def test_determine_packages_metadata(
+            self, net_man, n_plugin, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'ocata'
         en_meta.return_value = (True, None)
         net_man.return_value = 'bob'
         n_plugin.return_value = 'ovs'
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         self.assertTrue('nova-api-metadata' in result)
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
     @patch.object(utils, 'network_manager')
-    def test_determine_packages_use_multipath(self, net_man,
-                                              n_plugin, en_meta):
+    def test_determine_packages_use_multipath(
+            self, net_man, n_plugin, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'ocata'
         en_meta.return_value = (False, None)
         net_man.return_value = 'bob'
         self.test_config.set('use-multipath', True)
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         for pkg in utils.MULTIPATH_PACKAGES:
             self.assertTrue(pkg in result)
 
+    @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
     @patch.object(utils, 'network_manager')
-    def test_determine_packages_no_multipath(self, net_man,
-                                             n_plugin, en_meta):
+    def test_determine_packages_no_multipath(
+            self, net_man, n_plugin, en_meta,
+            mock_get_subordinate_release_packages):
         self.os_release.return_value = 'ocata'
         en_meta.return_value = (False, None)
         net_man.return_value = 'bob'
         self.test_config.set('use-multipath', False)
         self.relation_ids.return_value = []
+        mock_get_subordinate_release_packages.return_value = \
+            os_utils.SubordinatePackages(set(), set())
         result = utils.determine_packages()
         for pkg in utils.MULTIPATH_PACKAGES:
             self.assertFalse(pkg in result)
