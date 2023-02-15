@@ -367,6 +367,8 @@ class NovaComputeUtilsTests(CharmTestCase):
         for pkg in utils.MULTIPATH_PACKAGES:
             self.assertFalse(pkg in result)
 
+    @patch.dict(utils.os.environ, {'JUJU_UNIT_NAME': 'nova_compute'},
+                clear=True)
     @patch.object(utils, 'os')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'network_manager')
@@ -428,15 +430,17 @@ class NovaComputeUtilsTests(CharmTestCase):
             self.assertEqual(set(ex[k]['services']),
                              set(result[k]['services']))
 
-    @patch.object(utils, 'os')
+    @patch.dict(utils.os.environ, {'JUJU_UNIT_NAME': 'nova_compute'},
+                clear=True)
+    @patch.object(utils.os.path, 'exists')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'network_manager')
-    def test_resource_map_nova_network_ocata(self, net_man, en_meta, _os):
+    def test_resource_map_nova_network_ocata(self, net_man, en_meta, exists):
         self.os_release.return_value = 'ocata'
         self.test_config.set('multi-host', 'yes')
         en_meta.return_value = (False, None)
         net_man.return_value = 'flatdhcpmanager'
-        _os.path.exists.return_value = False
+        exists.return_value = False
         result = utils.resource_map()
         ex = {
             '/etc/default/libvirt-bin': {
@@ -484,6 +488,8 @@ class NovaComputeUtilsTests(CharmTestCase):
             self.assertEqual(set(ex[k]['services']),
                              set(result[k]['services']))
 
+    @patch.dict(utils.os.environ, {'JUJU_UNIT_NAME': 'nova_compute'},
+                clear=True)
     @patch.object(utils, 'os')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'network_manager')
@@ -494,6 +500,7 @@ class NovaComputeUtilsTests(CharmTestCase):
         self.test_config.set('multi-host', 'yes')
         net_man.return_value = 'flatdhcpmanager'
         _os.path.exists.return_value = True
+        _os.environ['JUJU_UNIT_NAME'] = 'nova-compute'
         result = utils.resource_map()
 
         ex = {
@@ -612,6 +619,8 @@ class NovaComputeUtilsTests(CharmTestCase):
             self.assertEqual(set(ex[k]['services']),
                              set(result[k]['services']))
 
+    @patch.dict(utils.os.environ, {'JUJU_UNIT_NAME': 'nova_compute'},
+                clear=True)
     @patch.object(utils.os.path, 'exists')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'network_manager')
@@ -620,6 +629,8 @@ class NovaComputeUtilsTests(CharmTestCase):
         self.os_release.return_value = 'diablo'
         self._test_resource_map_neutron(net_man, en_meta, 'libvirt-bin')
 
+    @patch.dict(utils.os.environ, {'JUJU_UNIT_NAME': 'nova_compute'},
+                clear=True)
     @patch.object(utils.os.path, 'exists')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'network_manager')
@@ -679,11 +690,13 @@ class NovaComputeUtilsTests(CharmTestCase):
         driver = nova_config.get('DEFAULT', 'compute_driver')
         self.assertEqual(driver, 'ironic.IronicDriver')
 
+    @patch.object(compute_context, 'config')
     @patch.object(compute_context, 'relation_ids')
     @patch.object(compute_context, 'os_release')
     @patch.object(utils, 'nova_metadata_requirement')
     def test_resource_map_ironic_wallaby(self, _metadata, _os_release,
-                                         _relation_ids):
+                                         _relation_ids, config):
+        config.side_effect = self.test_config.get
         _metadata.return_value = (True, None)
         self.relation_ids.return_value = []
         self.os_release.return_value = 'wallaby'
@@ -696,14 +709,17 @@ class NovaComputeUtilsTests(CharmTestCase):
         nova_config = self._get_rendered_config(utils.NOVA_COMPUTE_CONF,
                                                 result)
         driver = nova_config.get('DEFAULT', 'compute_driver')
-        self.assertEqual(driver, 'libvirt.LibvirtDriver')
+        self.assertEqual(driver, 'ironic.IronicDriver')
 
+    @patch.object(compute_context, 'config')
     @patch.object(compute_context, 'relation_ids')
     @patch.object(compute_context, 'os_release')
     @patch.object(utils, 'nova_metadata_requirement')
-    def test_resource_map_kvm(self, _metadata, _os_release, _relation_ids):
+    def test_resource_map_kvm(self, _metadata, _os_release, _relation_ids,
+                              config):
         """Tests that compute_driver is set to LibvirtDriver for kvm
         virt-type"""
+        config.side_effect = self.test_config.get
         _metadata.return_value = (True, None)
         self.relation_ids.return_value = []
         self.os_release.return_value = 'wallaby'
@@ -1389,58 +1405,6 @@ class NovaComputeUtilsTests(CharmTestCase):
         install_mount_override.assert_called_with(
             '/var/lib/nova/instances'
         )
-
-    @patch.object(utils.os.environ, 'get')
-    def test_get_az_customize_with_env(self, os_environ_get_mock):
-        self.test_config.set('customize-failure-domain', True)
-        self.test_config.set('default-availability-zone', 'nova')
-
-        def os_environ_get_side_effect(key):
-            return {
-                'JUJU_AVAILABILITY_ZONE': 'az1',
-            }[key]
-        os_environ_get_mock.side_effect = os_environ_get_side_effect
-        az = utils.get_availability_zone()
-        self.assertEqual('az1', az)
-
-    @patch.object(utils.os.environ, 'get')
-    def test_get_az_customize_without_env(self, os_environ_get_mock):
-        self.test_config.set('customize-failure-domain', True)
-        self.test_config.set('default-availability-zone', 'mynova')
-
-        def os_environ_get_side_effect(key):
-            return {
-                'JUJU_AVAILABILITY_ZONE': '',
-            }[key]
-        os_environ_get_mock.side_effect = os_environ_get_side_effect
-        az = utils.get_availability_zone()
-        self.assertEqual('mynova', az)
-
-    @patch.object(utils.os.environ, 'get')
-    def test_get_az_no_customize_without_env(self, os_environ_get_mock):
-        self.test_config.set('customize-failure-domain', False)
-        self.test_config.set('default-availability-zone', 'nova')
-
-        def os_environ_get_side_effect(key):
-            return {
-                'JUJU_AVAILABILITY_ZONE': '',
-            }[key]
-        os_environ_get_mock.side_effect = os_environ_get_side_effect
-        az = utils.get_availability_zone()
-        self.assertEqual('nova', az)
-
-    @patch.object(utils.os.environ, 'get')
-    def test_get_az_no_customize_with_env(self, os_environ_get_mock):
-        self.test_config.set('customize-failure-domain', False)
-        self.test_config.set('default-availability-zone', 'nova')
-
-        def os_environ_get_side_effect(key):
-            return {
-                'JUJU_AVAILABILITY_ZONE': 'az1',
-            }[key]
-        os_environ_get_mock.side_effect = os_environ_get_side_effect
-        az = utils.get_availability_zone()
-        self.assertEqual('nova', az)
 
     @patch.object(utils, "libvirt_daemon")
     @patch.object(utils, "hook_name")

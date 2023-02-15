@@ -12,40 +12,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
+import sys
+
 from unittest.mock import patch
-import os
 
-os.environ['JUJU_UNIT_NAME'] = 'nova_compute'
+import nova_compute_utils as utils  # noqa
 
-with patch('charmhelpers.core.hookenv.config') as config:
-    config.return_value = 'nova'
-    with patch('charmhelpers.contrib.openstack.context.HostInfoContext'):
-        import nova_compute_utils as utils  # noqa
-
-with patch('nova_compute_utils.restart_map'):
-    with patch('nova_compute_utils.register_configs'):
-        import openstack_upgrade
 
 from test_utils import (
     CharmTestCase
 )
 
+
+openstack_upgrade = None  # placeholder for module loaded in setUpModule
 TO_PATCH = [
     'config_changed',
     'do_openstack_upgrade'
 ]
 
 
+def setUpModule():
+    # to make sure python loads a mocked version of the module we unload it
+    # first.
+    if 'openstack_upgrade' in sys.modules:
+        del sys.modules['openstack_upgrade']
+
+    with patch('nova_compute_utils.restart_map'):
+        with patch('nova_compute_utils.register_configs'):
+            global openstack_upgrade
+            openstack_upgrade = importlib.import_module('openstack_upgrade')
+
+
+def tearDownModule():
+    # we unload the module since it was mocked, this prevents side effects.
+    if 'openstack_upgrade' in sys.modules:
+        del sys.modules['openstack_upgrade']
+
+
+@patch('nova_compute_utils.register_configs')
+@patch('nova_compute_utils.restart_map')
+@patch('charmhelpers.core.hookenv.config')
+@patch('charmhelpers.contrib.openstack.context.HostInfoContext')
 class TestNovaComputeUpgradeActions(CharmTestCase):
 
     def setUp(self):
         super(TestNovaComputeUpgradeActions, self).setUp(openstack_upgrade,
                                                          TO_PATCH)
 
-    @patch.object(openstack_upgrade, 'nova_vgpu_joined')
-    @patch.object(openstack_upgrade, 'nova_ceilometer_joined')
-    @patch.object(openstack_upgrade, 'neutron_plugin_joined')
-    @patch.object(openstack_upgrade, 'relation_ids')
+    @patch('openstack_upgrade.nova_vgpu_joined')
+    @patch('openstack_upgrade.nova_ceilometer_joined')
+    @patch('openstack_upgrade.neutron_plugin_joined')
+    @patch('openstack_upgrade.relation_ids')
     @patch('charmhelpers.contrib.openstack.utils.config')
     @patch('charmhelpers.contrib.openstack.utils.action_set')
     @patch('charmhelpers.contrib.openstack.utils.openstack_upgrade_available')
@@ -53,7 +71,8 @@ class TestNovaComputeUpgradeActions(CharmTestCase):
     def test_openstack_upgrade_true(self, log, upgrade_avail,
                                     action_set, config, relation_ids,
                                     neutron_plugin_joined,
-                                    nova_ceilometer_joined, nova_vgpu_joined):
+                                    nova_ceilometer_joined, nova_vgpu_joined,
+                                    *args):
 
         upgrade_avail.return_value = True
         config.return_value = True
@@ -77,10 +96,10 @@ class TestNovaComputeUpgradeActions(CharmTestCase):
 
     @patch('charmhelpers.contrib.openstack.utils.config')
     @patch('charmhelpers.contrib.openstack.utils.action_set')
-    @patch('charmhelpers.contrib.openstack.utils.openstack_upgrade_available')  # noqa
+    @patch('charmhelpers.contrib.openstack.utils.openstack_upgrade_available')
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     def test_openstack_upgrade_false(self, log, upgrade_avail,
-                                     action_set, config):
+                                     action_set, config, *args):
 
         upgrade_avail.return_value = True
         config.return_value = False

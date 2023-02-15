@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import importlib
 import json
 
@@ -22,7 +23,6 @@ from unittest.mock import (
     MagicMock
 )
 
-from nova_compute_hooks import update_nrpe_config
 
 from test_utils import CharmTestCase
 
@@ -106,6 +106,31 @@ TO_PATCH = [
     'restart_failed_subordinate_services',
     'send_application_name',
 ]
+
+
+class TestNrpeConfig(CharmTestCase):
+    def setUp(self):
+        objs_to_patch = copy.copy(TO_PATCH)
+        objs_to_patch.remove('update_nrpe_config')
+        super().setUp(hooks, objs_to_patch)
+        self.config.side_effect = self.test_config.get
+        self.filter_installed_packages.side_effect = \
+            MagicMock(side_effect=lambda pkgs: pkgs)
+        self.gethostname.return_value = 'testserver'
+        self.get_relation_ip.return_value = '10.0.0.50'
+        self.is_container.return_value = False
+
+    @patch('nova_compute_hooks.nrpe')
+    @patch('nova_compute_hooks.services')
+    @patch('charmhelpers.core.hookenv')
+    def test_nrpe_services_no_qemu_kvm(self, hookenv, services, nrpe):
+        '''
+        The qemu-kvm service is not monitored by NRPE, since it's one-shot.
+        '''
+        services.return_value = ['libvirtd', 'qemu-kvm', 'libvirt-bin']
+        hooks.update_nrpe_config()
+        nrpe.add_init_service_checks.assert_called_with(
+            ANY, ['libvirtd', 'libvirt-bin'], ANY)
 
 
 class NovaComputeRelationsTests(CharmTestCase):
@@ -424,18 +449,6 @@ class NovaComputeRelationsTests(CharmTestCase):
             user='nova'
         )
 
-    @patch('nova_compute_hooks.nrpe')
-    @patch('nova_compute_hooks.services')
-    @patch('charmhelpers.core.hookenv')
-    def test_nrpe_services_no_qemu_kvm(self, hookenv, services, nrpe):
-        '''
-        The qemu-kvm service is not monitored by NRPE, since it's one-shot.
-        '''
-        services.return_value = ['libvirtd', 'qemu-kvm', 'libvirt-bin']
-        update_nrpe_config()
-        nrpe.add_init_service_checks.assert_called_with(
-            ANY, ['libvirtd', 'libvirt-bin'], ANY)
-
     def test_amqp_joined(self):
         hooks.amqp_joined()
         self.relation_set.assert_called_with(
@@ -497,7 +510,9 @@ class NovaComputeRelationsTests(CharmTestCase):
             'availability_zone': 'az1',
         })
 
-    def test_compute_joined_with_ssh_migration(self):
+    @patch('nova_compute_context.config')
+    def test_compute_joined_with_ssh_migration(self, config):
+        config.side_effect = self.test_config.get
         self.migration_enabled.return_value = True
         self.test_config.set('migration-auth-type', 'ssh')
         self.public_ssh_key.return_value = 'foo'
@@ -521,7 +536,9 @@ class NovaComputeRelationsTests(CharmTestCase):
             'migration', cidr_network=None
         )
 
-    def test_compute_joined_with_resize(self):
+    @patch('nova_compute_context.config')
+    def test_compute_joined_with_resize(self, config):
+        config.side_effect = self.test_config.get
         self.migration_enabled.return_value = False
         self.test_config.set('enable-resize', True)
         self.public_ssh_key.return_value = 'bar'
@@ -902,6 +919,7 @@ class NovaComputeRelationsTests(CharmTestCase):
             compression_mode='fake',
         )
 
+    @patch('nova_compute_context.config')
     @patch.object(hooks.ch_context, 'CephBlueStoreCompressionContext')
     @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
            '.add_op_request_access_to_group')
@@ -910,7 +928,8 @@ class NovaComputeRelationsTests(CharmTestCase):
     @patch('uuid.uuid1')
     def test_get_ceph_request_perms(self, uuid1, mock_create_pool,
                                     mock_request_access,
-                                    mock_bluestore_compression):
+                                    mock_bluestore_compression, config):
+        config.side_effect = self.test_config.get
         self.assert_libvirt_rbd_imagebackend_allowed.return_value = True
         self.test_config.set('rbd-pool', 'nova')
         self.test_config.set('ceph-osd-replication-count', 3)
@@ -987,8 +1006,10 @@ class NovaComputeRelationsTests(CharmTestCase):
             default_service='nova-compute')
         self.restart_failed_subordinate_services.assert_called()
 
+    @patch('nova_compute_context.config')
     @patch.object(hooks, 'get_hugepage_number')
-    def test_neutron_plugin_joined_relid(self, get_hugepage_number):
+    def test_neutron_plugin_joined_relid(self, get_hugepage_number, config):
+        config.side_effect = self.test_config.get
         get_hugepage_number.return_value = None
         hooks.neutron_plugin_joined(relid='relid23')
         expect_rel_settings = {
@@ -1000,11 +1021,13 @@ class NovaComputeRelationsTests(CharmTestCase):
             **expect_rel_settings
         )
 
+    @patch('nova_compute_context.config')
     @patch('os.environ.get')
     @patch.object(hooks, 'get_hugepage_number')
     def test_neutron_plugin_joined_relid_juju_az(self,
                                                  get_hugepage_number,
-                                                 mock_env_get):
+                                                 mock_env_get, config):
+        config.side_effect = self.test_config.get
         self.test_config.set('customize-failure-domain', True)
 
         def environ_get_side_effect(key):
@@ -1023,8 +1046,10 @@ class NovaComputeRelationsTests(CharmTestCase):
             **expect_rel_settings
         )
 
+    @patch('nova_compute_context.config')
     @patch.object(hooks, 'get_hugepage_number')
-    def test_neutron_plugin_joined_huge(self, get_hugepage_number):
+    def test_neutron_plugin_joined_huge(self, get_hugepage_number, config):
+        config.side_effect = self.test_config.get
         get_hugepage_number.return_value = 12
         hooks.neutron_plugin_joined()
         expect_rel_settings = {
@@ -1036,8 +1061,11 @@ class NovaComputeRelationsTests(CharmTestCase):
             **expect_rel_settings
         )
 
+    @patch('nova_compute_context.config')
     @patch.object(hooks, 'get_hugepage_number')
-    def test_neutron_plugin_joined_remote_restart(self, get_hugepage_number):
+    def test_neutron_plugin_joined_remote_restart(self, get_hugepage_number,
+                                                  config):
+        config.side_effect = self.test_config.get
         get_hugepage_number.return_value = None
         self.uuid.uuid4.return_value = 'e030b959-7207'
         hooks.neutron_plugin_joined(remote_restart=True)
