@@ -131,7 +131,6 @@ from nova_compute_utils import (
     get_availability_zone,
     remove_old_packages,
     MULTIPATH_PACKAGES,
-    USE_FQDN_KEY,
     SWTPM_PACKAGES,
 )
 
@@ -151,6 +150,7 @@ from nova_compute_context import (
     NovaAPIAppArmorContext,
     NovaComputeAppArmorContext,
     NovaNetworkAppArmorContext,
+    NovaComputeHostInfoContext,
 )
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.core.sysctl import create as create_sysctl
@@ -182,9 +182,8 @@ def install():
     # units with OpenStack release Stein or newer.
     release = os_release('nova-common')
     if CompareOpenStackReleases(release) >= 'stein':
-        db = kv()
-        db.set(USE_FQDN_KEY, True)
-        db.flush()
+        NovaComputeHostInfoContext.set_fqdn_hint(True)
+        NovaComputeHostInfoContext.set_record_fqdn_hint(True)  # LP: #1896630
 
     install_vaultlocker()
 

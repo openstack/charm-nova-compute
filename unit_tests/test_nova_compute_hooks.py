@@ -25,7 +25,9 @@ from unittest.mock import (
 from nova_compute_hooks import update_nrpe_config
 
 from test_utils import CharmTestCase
-
+from nova_compute_context import (
+    NovaComputeHostInfoContext
+)
 with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
                             lambda *args, **kwargs: f(*args, **kwargs))
@@ -122,7 +124,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         self.is_container.return_value = False
 
     @patch.object(hooks, 'configure_extra_repositories')
-    @patch.object(hooks, 'kv')
+    @patch('nova_compute_context.kv')
     @patch.object(hooks, 'os_release')
     def test_install_hook(self, _os_release, _kv, _configure_extra_repos):
         repo = 'cloud:precise-grizzly'
@@ -139,8 +141,10 @@ class NovaComputeRelationsTests(CharmTestCase):
         kv = MagicMock()
         _kv.return_value = kv
         hooks.install()
-        kv.set.assert_called_once_with(hooks.USE_FQDN_KEY, True)
-        kv.flush.assert_called_once_with()
+        kv.set.assert_any_call(NovaComputeHostInfoContext.USE_FQDN_KEY, True)
+        kv.set.assert_any_call(
+            NovaComputeHostInfoContext.RECORD_FQDN_KEY, True)
+        kv.flush.assert_any_call()
 
     def test_configure_extra_repositories(self):
         """Tests configuring of extra repositories"""
