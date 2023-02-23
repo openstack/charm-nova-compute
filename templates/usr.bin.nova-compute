@@ -94,6 +94,7 @@
   /{usr/,}sbin/mkfs.ext2 rix,
   /{usr/,}sbin/mkfs.xfs rix,
   /{usr/,}sbin/mkfs.ntfs rix,
+  /{usr/,}sbin/mke2fs rix,
   /{usr/,}sbin/hdparm rix,
   /{usr/,}sbin/xtables-multi rix,
   /{usr/,}sbin/mkswap rix,
