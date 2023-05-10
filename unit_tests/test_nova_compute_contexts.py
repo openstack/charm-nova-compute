@@ -386,6 +386,36 @@ class NovaComputeContextTests(CharmTestCase):
              'reserved_host_disk': 0,
              'reserved_host_memory': 512}, libvirt())
 
+    @patch.object(context.subprocess, 'check_call')
+    def test_ensure_rbd_cleanup_rbd(self, call_mock):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'focal'}
+        self.os_release.return_value = 'ussuri'
+        self.test_config.set('libvirt-image-backend', 'rbd')
+        libvirt = context.NovaComputeLibvirtContext()
+        result = libvirt()
+        self.assertIn('ensure_libvirt_rbd_instance_dir_cleanup', result)
+        self.assertTrue(result['ensure_libvirt_rbd_instance_dir_cleanup'])
+        call_mock.assert_called_once_with(
+            ['df', '-l', '/var/lib/nova/instances'])
+
+    @patch.object(context.subprocess, 'check_call')
+    def test_ensure_rbd_cleanup_rbd_non_local_mount(self, call_mock):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'focal'}
+        self.os_release.return_value = 'ussuri'
+        call_mock.side_effect = [context.subprocess.CalledProcessError(
+            1, 'df -l /var/foo/bar')]
+        self.test_config.set('libvirt-image-backend', 'rbd')
+        self.test_config.set('instances-path', '/var/foo/bar')
+        libvirt = context.NovaComputeLibvirtContext()
+        self.assertNotIn('ensure_libvirt_rbd_instance_dir_cleanup', libvirt())
+        call_mock.assert_called_once_with(['df', '-l', '/var/foo/bar'])
+
+    def test_ensure_rbd_cleanup_non_rbd(self):
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'focal'}
+        self.os_release.return_value = 'ussuri'
+        libvirt = context.NovaComputeLibvirtContext()
+        self.assertNotIn('ensure_libvirt_rbd_instance_dir_cleanup', libvirt())
+
     def test_libvirt_context_inject_password(self):
         self.lsb_release.return_value = {'DISTRIB_CODENAME': 'zesty'}
         self.os_release.return_value = 'ocata'
