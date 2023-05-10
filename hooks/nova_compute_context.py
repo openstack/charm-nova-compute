@@ -16,6 +16,7 @@ import json
 import os
 import platform
 import shutil
+import subprocess
 import uuid
 
 from charmhelpers.core.unitdata import kv
@@ -38,6 +39,7 @@ from charmhelpers.core.hookenv import (
     service_name,
     ERROR,
     INFO,
+    DEBUG,
 )
 from charmhelpers.contrib.openstack.utils import (
     get_os_version_package,
@@ -93,6 +95,16 @@ def _network_manager():
 def _get_availability_zone():
     from nova_compute_utils import get_availability_zone as get_az
     return get_az()
+
+
+def is_local_fs(path):
+    result = False
+    try:
+        subprocess.check_call(["df", "-l", path])
+        result = True
+    except subprocess.CalledProcessError as e:
+        log("Error invoking df -l {}: {}".format(path, e), level=DEBUG)
+    return result
 
 
 def _neutron_security_groups():
@@ -315,6 +327,17 @@ class NovaComputeLibvirtContext(context.OSContextGenerator):
 
         if config('libvirt-image-backend'):
             ctxt['libvirt_images_type'] = config('libvirt-image-backend')
+            if config('libvirt-image-backend') == 'rbd':
+                instances_path = config('instances-path')
+                if instances_path in ('', None):
+                    instances_path = '/var/lib/nova/instances'
+                if is_local_fs(instances_path):
+                    ctxt['ensure_libvirt_rbd_instance_dir_cleanup'] = True
+                else:
+                    log("Skipped enabling "
+                        "'ensure_libvirt_rbd_instance_dir_cleanup' because"
+                        " instances-path is not a local mount.",
+                        level=INFO)
 
         ctxt['force_raw_images'] = config('force-raw-images')
         ctxt['inject_password'] = config('inject-password')
