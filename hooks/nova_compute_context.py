@@ -17,6 +17,7 @@ import os
 import platform
 import shutil
 import socket
+import subprocess
 import uuid
 
 from typing import (
@@ -95,6 +96,16 @@ def _save_flag_file(path, data):
 def _network_manager():
     from nova_compute_utils import network_manager as manager
     return manager()
+
+
+def is_local_fs(path):
+    result = False
+    try:
+        subprocess.check_call(["df", "-l", path])
+        result = True
+    except subprocess.CalledProcessError as e:
+        log("Error invoking df -l {}: {}".format(path, e), level=DEBUG)
+    return result
 
 
 def get_availability_zone():
@@ -324,6 +335,17 @@ class NovaComputeLibvirtContext(context.OSContextGenerator):
 
         if config('libvirt-image-backend'):
             ctxt['libvirt_images_type'] = config('libvirt-image-backend')
+            if config('libvirt-image-backend') == 'rbd':
+                instances_path = config('instances-path')
+                if instances_path in ('', None):
+                    instances_path = '/var/lib/nova/instances'
+                if is_local_fs(instances_path):
+                    ctxt['ensure_libvirt_rbd_instance_dir_cleanup'] = True
+                else:
+                    log("Skipped enabling "
+                        "'ensure_libvirt_rbd_instance_dir_cleanup' because"
+                        " instances-path is not a local mount.",
+                        level=INFO)
 
         ctxt['force_raw_images'] = config('force-raw-images')
         ctxt['inject_password'] = config('inject-password')
