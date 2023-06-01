@@ -90,9 +90,11 @@ def _network_manager():
     return manager()
 
 
-def _get_availability_zone():
-    from nova_compute_utils import get_availability_zone as get_az
-    return get_az()
+def get_availability_zone():
+    use_juju_az = config('customize-failure-domain')
+    juju_az = os.environ.get('JUJU_AVAILABILITY_ZONE')
+    return (juju_az if use_juju_az and juju_az
+            else config('default-availability-zone'))
 
 
 def _neutron_security_groups():
@@ -948,7 +950,7 @@ class NovaComputeAvailabilityZoneContext(context.OSContextGenerator):
 
     def __call__(self):
         ctxt = {}
-        ctxt['default_availability_zone'] = _get_availability_zone()
+        ctxt['default_availability_zone'] = get_availability_zone()
         return ctxt
 
 

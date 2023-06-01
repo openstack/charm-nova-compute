@@ -1235,10 +1235,3 @@ def install_mount_override(mountpoint):
         {'mount_point': mountpoint.replace('/', '-')[1:]},
         perms=0o644,
     )
-
-
-def get_availability_zone():
-    use_juju_az = config('customize-failure-domain')
-    juju_az = os.environ.get('JUJU_AVAILABILITY_ZONE')
-    return (juju_az if use_juju_az and juju_az
-            else config('default-availability-zone'))

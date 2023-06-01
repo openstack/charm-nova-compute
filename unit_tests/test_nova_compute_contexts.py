@@ -1090,6 +1090,58 @@ class NovaComputeContextTests(CharmTestCase):
              '"name": " Cirrus Logic ", "product_id": "0ff2", '
              '"vendor_id": "10de"}'))
 
+    @patch.object(context.os.environ, 'get')
+    def test_get_az_customize_with_env(self, os_environ_get_mock):
+        self.test_config.set('customize-failure-domain', True)
+        self.test_config.set('default-availability-zone', 'nova')
+
+        def os_environ_get_side_effect(key):
+            return {
+                'JUJU_AVAILABILITY_ZONE': 'az1',
+            }[key]
+        os_environ_get_mock.side_effect = os_environ_get_side_effect
+        az = context.get_availability_zone()
+        self.assertEqual('az1', az)
+
+    @patch.object(context.os.environ, 'get')
+    def test_get_az_customize_without_env(self, os_environ_get_mock):
+        self.test_config.set('customize-failure-domain', True)
+        self.test_config.set('default-availability-zone', 'mynova')
+
+        def os_environ_get_side_effect(key):
+            return {
+                'JUJU_AVAILABILITY_ZONE': '',
+            }[key]
+        os_environ_get_mock.side_effect = os_environ_get_side_effect
+        az = context.get_availability_zone()
+        self.assertEqual('mynova', az)
+
+    @patch.object(context.os.environ, 'get')
+    def test_get_az_no_customize_without_env(self, os_environ_get_mock):
+        self.test_config.set('customize-failure-domain', False)
+        self.test_config.set('default-availability-zone', 'nova')
+
+        def os_environ_get_side_effect(key):
+            return {
+                'JUJU_AVAILABILITY_ZONE': '',
+            }[key]
+        os_environ_get_mock.side_effect = os_environ_get_side_effect
+        az = context.get_availability_zone()
+        self.assertEqual('nova', az)
+
+    @patch.object(context.os.environ, 'get')
+    def test_get_az_no_customize_with_env(self, os_environ_get_mock):
+        self.test_config.set('customize-failure-domain', False)
+        self.test_config.set('default-availability-zone', 'nova')
+
+        def os_environ_get_side_effect(key):
+            return {
+                'JUJU_AVAILABILITY_ZONE': 'az1',
+            }[key]
+        os_environ_get_mock.side_effect = os_environ_get_side_effect
+        az = context.get_availability_zone()
+        self.assertEqual('nova', az)
+
 
 class IronicAPIContextTests(CharmTestCase):
 
@@ -1199,7 +1251,7 @@ class NovaComputeAvailabilityZoneContextTests(CharmTestCase):
               self).setUp(context, TO_PATCH)
         self.os_release.return_value = 'kilo'
 
-    @patch('nova_compute_utils.config')
+    @patch('nova_compute_context.config')
     @patch('os.environ.get')
     def test_availability_zone_no_juju_with_env(self, mock_get,
                                                 mock_config):
@@ -1220,7 +1272,7 @@ class NovaComputeAvailabilityZoneContextTests(CharmTestCase):
         self.assertEqual(
             {'default_availability_zone': 'nova'}, az_context())
 
-    @patch('nova_compute_utils.config')
+    @patch('nova_compute_context.config')
     @patch('os.environ.get')
     def test_availability_zone_no_juju_no_env(self, mock_get,
                                               mock_config):
@@ -1300,12 +1352,16 @@ class NovaComputeCephContextTest(CharmTestCase):
         self.config.side_effect = self.test_config.get
         self.os_release.return_value = 'queens'
 
+    @patch.dict(context.os.environ, {'JUJU_UNIT_NAME': 'nova_compute'},
+                clear=True)
     @patch('charmhelpers.contrib.openstack.context.CephContext.__call__')
     def test_rbd_replicated_pool(self, mock_call):
         mock_call.return_value = {'mon_hosts': 'foo,bar'}
         ctxt = context.NovaComputeCephContext()()
         self.assertEqual(ctxt['rbd_pool'], 'nova')
 
+    @patch.dict(context.os.environ, {'JUJU_UNIT_NAME': 'nova_compute'},
+                clear=True)
     @patch('charmhelpers.contrib.openstack.context.CephContext.__call__')
     def test_rbd_ec_pool(self, mock_call):
         self.test_config.set('pool-type', 'erasure-coded')
