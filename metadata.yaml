@@ -8,6 +8,7 @@ description: |
   .
   This charm provides the Nova Compute hypervisor service and should be deployed
   directly to physical servers.
+docs: https://discourse.charmhub.io/t/nova-compute-docs-index/10552
 tags:
 - openstack
 series:
