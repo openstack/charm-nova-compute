@@ -552,12 +552,14 @@ class NovaComputeUtilsTests(CharmTestCase):
         result = utils.resource_map()['/etc/nova/nova.conf']['services']
         self.assertTrue('nova-api-metadata' in result)
 
+    @patch.object(compute_context, 'config')
     @patch.object(utils, 'nova_metadata_requirement')
-    def test_resource_map_ironic_pre_victoria(self, _metadata):
+    def test_resource_map_ironic_pre_victoria(self, _metadata, cctxt_config):
         _metadata.return_value = (True, None)
         self.relation_ids.return_value = []
         self.os_release.return_value = 'train'
         self.test_config.set('virt-type', 'ironic')
+        cctxt_config.side_effect = self.test_config.get
         result = utils.resource_map()
         self.assertTrue(utils.NOVA_COMPUTE_CONF in result)
         self.assertEqual(
