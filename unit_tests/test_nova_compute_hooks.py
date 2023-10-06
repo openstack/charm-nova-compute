@@ -69,6 +69,7 @@ TO_PATCH = [
     'get_relation_ip',
     # nova_compute_context
     'nova_metadata_requirement',
+    'sent_ceph_application_name',
     # nova_compute_utils
     # 'PACKAGES',
     'create_libvirt_secret',
@@ -614,10 +615,13 @@ class NovaComputeRelationsTests(CharmTestCase):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['ceph']
         self.ensure_ceph_keyring.return_value = False
+        self.sent_ceph_application_name.return_value = 'nova-compute'
         hooks.ceph_changed()
         self.log.assert_called_with(
-            'Could not create ceph keyring: peer not ready?'
+            'Could not create ceph keyring for nova-compute: peer not ready?'
         )
+        self.ensure_ceph_keyring.assert_called_once_with(
+            service='nova-compute', user='nova', group='nova')
 
     @patch.object(hooks, '_handle_ceph_request')
     @patch.object(hooks, 'create_libvirt_secret')
@@ -629,15 +633,56 @@ class NovaComputeRelationsTests(CharmTestCase):
                                                      _handle_ceph_request):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['ceph']
+        self.sent_ceph_application_name.return_value = 'nova-compute-kvm'
+        service_name.return_value = 'nova-compute-kvm'
         self.ensure_ceph_keyring.return_value = True
         configs.write = MagicMock()
-        service_name.return_value = 'nova-compute'
         key = {'data': 'key'}
         self.relation_get.return_value = key
 
         hooks.ceph_changed()
+        self.send_application_name.assert_called_once_with(
+            relid=None, app_name=hooks.CEPH_AUTH_CRED_NAME)
         ex = [
-            call('/var/lib/charm/nova-compute/ceph.conf'),
+            call('/var/lib/charm/nova-compute-kvm/ceph.conf'),
+            call('/etc/ceph/secret.xml'),
+            call('/etc/nova/nova.conf'),
+        ]
+        self.assertEqual(ex, configs.write.call_args_list)
+        create_libvirt_secret.assert_called_once_with(
+            secret_file='/etc/ceph/secret.xml', key=key,
+            secret_uuid=hooks.CEPH_OLD_SECRET_UUID)
+        # confirm exception is caught
+        _handle_ceph_request.side_effect = ValueError
+        hooks.ceph_changed()
+        self.log.assert_has_calls([
+            call('Sending application name for new ceph credentials after'
+                 ' setting up the old credentials'),
+            call('Caught ValueError, invalid value provided'
+                 ' for configuration?: ""', level='WARNING')
+        ])
+
+    @patch.object(hooks, '_handle_ceph_request')
+    @patch.object(hooks, 'create_libvirt_secret')
+    @patch('nova_compute_context.service_name')
+    @patch.object(hooks, 'CONFIGS')
+    def test_ceph_changed_with_key_and_relation_data_new_ceph_creds(
+            self, configs, service_name, create_libvirt_secret,
+            _handle_ceph_request):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['ceph']
+        self.sent_ceph_application_name.return_value = (
+            hooks.CEPH_AUTH_CRED_NAME)
+        service_name.return_value = 'nova-compute-kvm'
+        self.ensure_ceph_keyring.return_value = True
+        configs.write = MagicMock()
+        key = {'data': 'key'}
+        self.relation_get.return_value = key
+
+        hooks.ceph_changed()
+        self.send_application_name.assert_not_called()
+        ex = [
+            call('/var/lib/charm/nova-compute-kvm/ceph.conf'),
             call('/etc/ceph/secret.xml'),
             call('/etc/nova/nova.conf'),
         ]
@@ -645,10 +690,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         create_libvirt_secret.assert_called_once_with(
             secret_file='/etc/ceph/secret.xml', key=key,
             secret_uuid=hooks.CEPH_SECRET_UUID)
-        # confirm exception is caught
-        _handle_ceph_request.side_effect = ValueError
-        hooks.ceph_changed()
-        self.log.assert_called_once()
+        self.log.assert_not_called()
 
     @patch.object(hooks, 'get_ceph_request')
     @patch.object(hooks, 'get_request_states')
@@ -1280,7 +1322,37 @@ class NovaComputeRelationsTests(CharmTestCase):
         grp_mock.gr_gid = None
         getgrnam.return_value = grp_mock
         self.remove_old_packages.return_value = False
+        self.sent_ceph_application_name.return_value = 'nova-compute'
         hooks.upgrade_charm()
+        self.send_application_name.assert_not_called()
+        self.remove_old_packages.assert_called_once_with()
+        self.assertFalse(self.service_restart.called)
+
+    @patch.object(hooks.grp, 'getgrnam')
+    def test_upgrade_charm_send_app_name(self, getgrnam):
+        grp_mock = MagicMock()
+        grp_mock.gr_gid = None
+        getgrnam.return_value = grp_mock
+        self.remove_old_packages.return_value = False
+        self.sent_ceph_application_name.return_value = 'nova-compute-kvm'
+        self.relation_ids.return_value = ['ceph:0']
+        hooks.upgrade_charm()
+        self.send_application_name.assert_called_once_with(
+            relid='ceph:0', app_name=hooks.CEPH_AUTH_CRED_NAME)
+        self.remove_old_packages.assert_called_once_with()
+        self.assertFalse(self.service_restart.called)
+
+    @patch.object(hooks.grp, 'getgrnam')
+    def test_upgrade_charm_send_app_name_2(self, getgrnam):
+        grp_mock = MagicMock()
+        grp_mock.gr_gid = None
+        getgrnam.return_value = grp_mock
+        self.remove_old_packages.return_value = False
+        self.sent_ceph_application_name.return_value = 'nova-compute'
+        self.relation_ids.return_value = ['ceph:0']
+        hooks.upgrade_charm()
+        self.send_application_name.assert_called_once_with(
+            relid='ceph:0', app_name=hooks.CEPH_AUTH_CRED_NAME)
         self.remove_old_packages.assert_called_once_with()
         self.assertFalse(self.service_restart.called)
 
