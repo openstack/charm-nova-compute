@@ -32,6 +32,7 @@ from charmhelpers.core.strutils import (
 from charmhelpers.fetch import apt_install, filter_installed_packages
 from charmhelpers.core.hookenv import (
     config,
+    local_unit,
     log,
     relation_get,
     relation_ids,
@@ -56,8 +57,14 @@ from charmhelpers.contrib.network.ip import (
 )
 
 # This is just a label and it must be consistent across
-# nova-compute nodes to support live migration.
-CEPH_SECRET_UUID = '514c9fca-8cbe-11e2-9c52-3bc8c7819472'
+# nova-compute nodes to support live migration. It needs to
+# change whenever CEPH_SECRET_UUID also changes.
+CEPH_AUTH_CRED_NAME = 'nova-compute-ceph-auth-c91ce26f'
+CEPH_SECRET_UUID = 'c91ce26f-403d-4058-9c38-6b56e1c428e0'
+# We keep the old secret to retain old credentials and support
+# live-migrations between existing instances to newly deployed
+# nodes. For more info see LP#2037003.
+CEPH_OLD_SECRET_UUID = '514c9fca-8cbe-11e2-9c52-3bc8c7819472'
 
 OVS_BRIDGE = 'br-int'
 
@@ -105,6 +112,16 @@ def is_local_fs(path):
     except subprocess.CalledProcessError as e:
         log("Error invoking df -l {}: {}".format(path, e), level=DEBUG)
     return result
+
+
+def sent_ceph_application_name():
+    app_name = None
+    for rid in relation_ids('ceph'):
+        app_name = relation_get(
+            'application-name', rid=rid, unit=local_unit())
+    # default to the old name, so it goes through the old path during
+    # ceph relation set up
+    return app_name or service_name()
 
 
 def _neutron_security_groups():
@@ -427,13 +444,18 @@ class NovaComputeCephContext(context.CephContext):
         ctxt = super(NovaComputeCephContext, self).__call__()
         if not ctxt:
             return {}
-        svc = service_name()
+        svc = sent_ceph_application_name()
+        if svc == CEPH_AUTH_CRED_NAME:
+            secret_uuid = CEPH_SECRET_UUID
+        else:
+            secret_uuid = CEPH_OLD_SECRET_UUID
+
         # secret.xml
-        ctxt['ceph_secret_uuid'] = CEPH_SECRET_UUID
+        ctxt['ceph_secret_uuid'] = secret_uuid
         # nova.conf
         ctxt['service_name'] = svc
         ctxt['rbd_user'] = svc
-        ctxt['rbd_secret_uuid'] = CEPH_SECRET_UUID
+        ctxt['rbd_secret_uuid'] = secret_uuid
 
         if config('pool-type') == 'erasure-coded':
             ctxt['rbd_pool'] = (

@@ -34,6 +34,7 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     INFO,
+    WARNING,
     ERROR,
     relation_ids,
     remote_service_name,
@@ -106,7 +107,8 @@ from nova_compute_utils import (
     restart_failed_subordinate_services,
     register_configs,
     NOVA_CONF,
-    ceph_config_file, CEPH_SECRET,
+    ceph_config_file,
+    CEPH_SECRET,
     CEPH_BACKEND_SECRET,
     enable_shell, disable_shell,
     configure_lxd,
@@ -138,6 +140,9 @@ from charmhelpers.core.unitdata import kv
 
 from nova_compute_context import (
     nova_metadata_requirement,
+    sent_ceph_application_name,
+    CEPH_OLD_SECRET_UUID,
+    CEPH_AUTH_CRED_NAME,
     CEPH_SECRET_UUID,
     assert_libvirt_rbd_imagebackend_allowed,
     NovaAPIAppArmorContext,
@@ -455,6 +460,7 @@ def ceph_joined():
         # Bug 1427660
         if not is_unit_paused_set() and config('virt-type') in LIBVIRT_TYPES:
             service_restart(libvirt_daemon())
+    # install old credentials first for backwards compatibility
     send_application_name()
 
 
@@ -567,9 +573,16 @@ def ceph_changed(rid=None, unit=None):
         log('ceph relation incomplete. Peer not ready?')
         return
 
-    if not ensure_ceph_keyring(service=service_name(), user='nova',
+    sent_app_name = sent_ceph_application_name()
+    if sent_app_name == CEPH_AUTH_CRED_NAME:
+        secret_uuid = CEPH_SECRET_UUID
+    else:
+        secret_uuid = CEPH_OLD_SECRET_UUID
+
+    if not ensure_ceph_keyring(service=sent_app_name, user='nova',
                                group='nova'):
-        log('Could not create ceph keyring: peer not ready?')
+        log('Could not create ceph keyring '
+            'for {}: peer not ready?'.format(sent_app_name))
         return
 
     CONFIGS.write(ceph_config_file())
@@ -581,7 +594,12 @@ def ceph_changed(rid=None, unit=None):
     key = relation_get(attribute='key', rid=rid, unit=unit)
     if config('virt-type') in ['kvm', 'qemu', 'lxc'] and key:
         create_libvirt_secret(secret_file=CEPH_SECRET,
-                              secret_uuid=CEPH_SECRET_UUID, key=key)
+                              secret_uuid=secret_uuid, key=key)
+
+    if sent_app_name != CEPH_AUTH_CRED_NAME:
+        log('Sending application name for new ceph credentials after '
+            'setting up the old credentials')
+        send_application_name(relid=rid, app_name=CEPH_AUTH_CRED_NAME)
 
     try:
         _handle_ceph_request()
@@ -592,7 +610,7 @@ def ceph_changed(rid=None, unit=None):
         # the hook execution.
         log('Caught ValueError, invalid value provided for '
             'configuration?: "{}"'.format(str(e)),
-            level=DEBUG)
+            level=WARNING)
 
 
 # TODO: Refactor this method moving part of this logic to charmhelpers,
@@ -692,8 +710,11 @@ def _get_broker_rid_unit_for_previous_request():
 
 @hooks.hook('ceph-relation-broken')
 def ceph_broken():
-    service = service_name()
-    delete_keyring(service=service)
+    delete_keyring(service=CEPH_AUTH_CRED_NAME)
+    # cleanup old entries based on application name
+    svc_name = service_name()
+    if svc_name != CEPH_AUTH_CRED_NAME:
+        delete_keyring(service=svc_name)
     update_all_configs()
 
 
@@ -719,6 +740,10 @@ def upgrade_charm():
 
     for r_id in relation_ids('amqp'):
         amqp_joined(relation_id=r_id)
+    # Trigger upgrade-path from application_name to 'nova-compute'
+    if sent_ceph_application_name() != CEPH_AUTH_CRED_NAME:
+        for r_id in relation_ids('ceph'):
+            send_application_name(relid=r_id, app_name=CEPH_AUTH_CRED_NAME)
 
     if is_relation_made('nrpe-external-master'):
         update_nrpe_config()
