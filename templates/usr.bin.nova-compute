@@ -164,4 +164,7 @@
   /etc/magic r,
   /sys/devices/virtual/dmi/** r,
   /usr/sbin/dmidecode rix,
+  /usr/sbin/blkid rix,
+  /usr/sbin/nvme rix,
+  /etc/nvme/hostnqn r,
 }
