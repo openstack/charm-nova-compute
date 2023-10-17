@@ -13,7 +13,6 @@ tags:
 - openstack
 series:
 - jammy
-- lunar
 - mantic
 provides:
   cloud-compute:
@@ -24,7 +23,6 @@ provides:
 extra-bindings:
   # Used for console access to instances
   internal:
-  # Used for live/cold migration of instances
   migration:
 requires:
   amqp:
