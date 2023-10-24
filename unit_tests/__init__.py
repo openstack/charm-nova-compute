@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # python-apt is not installed as part of test-requirements but is imported by
 # some charmhelpers modules so create a fake import.
@@ -23,3 +23,15 @@ sys.modules['apt_pkg'] = MagicMock()
 sys.path.append('actions/')
 sys.path.append('hooks/')
 sys.path.append('unit_tests')
+
+# Patch out lsb_release() and get_platform() as unit tests should be fully
+# insulated from the underlying platform.  Unit tests assume that the system is
+# ubuntu jammy.
+patch(
+    'charmhelpers.osplatform.get_platform', return_value='ubuntu'
+).start()
+patch(
+    'charmhelpers.core.host.lsb_release',
+    return_value={
+        'DISTRIB_CODENAME': 'jammy'
+    }).start()
