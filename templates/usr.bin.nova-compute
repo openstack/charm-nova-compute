@@ -52,6 +52,8 @@
   /etc/multipath/wwids wrk,
   /etc/nova/** r,
   /etc/ssh/ssh_config r,
+  /etc/ssh/ssh_config.d/ r,
+  /etc/ssh/ssh_config.d/* r,
   /etc/ssl/openssl.cnf r,
   /etc/sudoers r,
   /etc/sudoers.d/ r,
