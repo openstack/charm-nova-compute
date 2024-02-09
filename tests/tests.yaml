@@ -1,25 +1,22 @@
 charm_name: nova-compute
 
 smoke_bundles:
-- jammy-antelope
-
+  - jammy-caracal
 gate_bundles:
-- jammy-antelope
-
+  - jammy-antelope
+  - jammy-bobcat
+  - jammy-caracal
 dev_bundles:
-- jammy-bobcat
-- lunar-antelope
-- mantic-bobcat
-
+  - noble-caracal
 configure:
-- zaza.openstack.charm_tests.vault.setup.auto_initialize_no_validation_no_wait
-- zaza.openstack.charm_tests.glance.setup.add_cirros_image
-- zaza.openstack.charm_tests.glance.setup.add_lts_image
-- zaza.openstack.charm_tests.glance.setup.add_uefi_image
-- zaza.openstack.charm_tests.keystone.setup.add_demo_user
-- zaza.openstack.charm_tests.neutron.setup.basic_overcloud_network
-- zaza.openstack.charm_tests.nova.setup.create_flavors
-- zaza.openstack.charm_tests.nova.setup.manage_ssh_key
+  - zaza.openstack.charm_tests.vault.setup.auto_initialize_no_validation_no_wait
+  - zaza.openstack.charm_tests.glance.setup.add_cirros_image
+  - zaza.openstack.charm_tests.glance.setup.add_lts_image
+  - zaza.openstack.charm_tests.glance.setup.add_uefi_image
+  - zaza.openstack.charm_tests.keystone.setup.add_demo_user
+  - zaza.openstack.charm_tests.neutron.setup.basic_overcloud_network
+  - zaza.openstack.charm_tests.nova.setup.create_flavors
+  - zaza.openstack.charm_tests.nova.setup.manage_ssh_key
 
 target_deploy_status:
   barbican-vault:
@@ -30,16 +27,15 @@ target_deploy_status:
     workload-status-message-prefix: "Vault needs to be initialized"
 
 tests:
-- zaza.openstack.charm_tests.nova.tests.CirrosGuestCreateTest
-- zaza.openstack.charm_tests.nova.tests.LTSGuestCreateTest
-- zaza.openstack.charm_tests.nova.tests.VTPMGuestCreateTest
-- zaza.openstack.charm_tests.nova.tests.CloudActions
-- zaza.openstack.charm_tests.nova.tests.NovaCompute
-- zaza.openstack.charm_tests.nova.tests.SecurityTests
-- zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
-- zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation
+  - zaza.openstack.charm_tests.nova.tests.CirrosGuestCreateTest
+  - zaza.openstack.charm_tests.nova.tests.LTSGuestCreateTest
+  - zaza.openstack.charm_tests.nova.tests.VTPMGuestCreateTest
+  - zaza.openstack.charm_tests.nova.tests.CloudActions
+  - zaza.openstack.charm_tests.nova.tests.NovaCompute
+  - zaza.openstack.charm_tests.nova.tests.SecurityTests
+  - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
+  - zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation
 
 tests_options:
   force_deploy:
-    - lunar-antelope
-    - mantic-bobcat
+    - noble-caracal
