@@ -53,6 +53,8 @@
   /etc/nova/** r,
   /etc/qemu/firmware/{,**} r,
   /etc/ssh/ssh_config r,
+  /etc/ssh/ssh_config.d/ r,
+  /etc/ssh/ssh_config.d/* r,
   /etc/ssl/openssl.cnf r,
   /etc/sudo.conf r,
   /etc/sudoers r,
