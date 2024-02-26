@@ -414,17 +414,6 @@ def get_os_version_codename(codename, version_map=OPENSTACK_CODENAMES,
     error_out(e)
 
 
-def get_os_version_codename_swift(codename):
-    '''Determine OpenStack version number of swift from codename.'''
-    # for k, v in six.iteritems(SWIFT_CODENAMES):
-    for k, v in SWIFT_CODENAMES.items():
-        if k == codename:
-            return v[-1]
-    e = 'Could not derive swift version for '\
-        'codename: %s' % codename
-    error_out(e)
-
-
 def get_swift_codename(version):
     '''Determine OpenStack codename that corresponds to swift version.'''
     codenames = [k for k, v in SWIFT_CODENAMES.items() if version in v]
@@ -845,14 +834,10 @@ def openstack_upgrade_available(package):
     if not cur_vers:
         # The package has not been installed yet do not attempt upgrade
         return False
-    if "swift" in package:
-        codename = get_os_codename_install_source(src)
-        avail_vers = get_os_version_codename_swift(codename)
-    else:
-        try:
-            avail_vers = get_os_version_install_source(src)
-        except Exception:
-            avail_vers = cur_vers
+    try:
+        avail_vers = get_os_version_install_source(src)
+    except Exception:
+        avail_vers = cur_vers
     apt.init()
     return apt.version_compare(avail_vers, cur_vers) >= 1
 
