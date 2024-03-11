@@ -26,6 +26,7 @@ TO_PATCH = [
     'relation_ids',
     'relation_get',
     'related_units',
+    'service_name',
     'config',
     'log',
     '_save_flag_file',
@@ -1024,6 +1025,25 @@ class NovaComputeContextTests(CharmTestCase):
         self.assertEqual(context.nova_metadata_requirement(),
                          (True, None))
 
+    @patch('nova_compute_context.local_unit')
+    def test_sent_ceph_application_name_empty_rel_data_default(
+            self, local_unit):
+        local_unit.return_value = 'nova-compute-kvm/0'
+        self.relation_ids.return_value = ['ceph:0']
+        self.test_relation.set({})
+        self.service_name.return_value = 'nova-compute-kvm'
+        self.assertEqual(
+            context.sent_ceph_application_name(), 'nova-compute-kvm')
+
+    @patch('nova_compute_context.local_unit')
+    def test_sent_ceph_application_name(self, local_unit):
+        local_unit.return_value = 'nova-compute-kvm/0'
+        self.relation_ids.return_value = ['ceph:0']
+        self.test_relation.set({'application-name': 'ceph-nova-compute'})
+        self.service_name.return_value = 'nova-compute-kvm'
+        self.assertEqual(
+            context.sent_ceph_application_name(), 'ceph-nova-compute')
+
     def test_nova_compute_extra_flags(self):
         self.test_config.set('cpu-model-extra-flags', 'pcid vmx pdpe1gb')
         self.lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
@@ -1334,6 +1354,43 @@ class NovaComputeCephContextTest(CharmTestCase):
         super().setUp(context, TO_PATCH)
         self.config.side_effect = self.test_config.get
         self.os_release.return_value = 'queens'
+
+    @patch('nova_compute_context.sent_ceph_application_name')
+    @patch('charmhelpers.contrib.openstack.context.CephContext.__call__')
+    def test_secret_uuid_old(self, mock_call, sent_name):
+        sent_name.return_value = 'nova-compute-kvm'
+        mock_call.return_value = {'foo': 'bar'}
+        ctxt = context.NovaComputeCephContext()()
+        self.assertEqual(
+            context.CEPH_OLD_SECRET_UUID, ctxt['ceph_secret_uuid'])
+        self.assertEqual(
+            context.CEPH_OLD_SECRET_UUID, ctxt['rbd_secret_uuid'])
+        self.assertEqual('nova-compute-kvm', ctxt['service_name'])
+        self.assertEqual('nova-compute-kvm', ctxt['rbd_user'])
+
+    @patch('nova_compute_context.sent_ceph_application_name')
+    @patch('charmhelpers.contrib.openstack.context.CephContext.__call__')
+    def test_secret_uuid_old_2(self, mock_call, sent_name):
+        sent_name.return_value = 'nova-compute'
+        mock_call.return_value = {'foo': 'bar'}
+        ctxt = context.NovaComputeCephContext()()
+        self.assertEqual(
+            context.CEPH_OLD_SECRET_UUID, ctxt['ceph_secret_uuid'])
+        self.assertEqual(
+            context.CEPH_OLD_SECRET_UUID, ctxt['rbd_secret_uuid'])
+        self.assertEqual('nova-compute', ctxt['service_name'])
+        self.assertEqual('nova-compute', ctxt['rbd_user'])
+
+    @patch('nova_compute_context.sent_ceph_application_name')
+    @patch('charmhelpers.contrib.openstack.context.CephContext.__call__')
+    def test_secret_uuid_new(self, mock_call, sent_name):
+        sent_name.return_value = context.CEPH_AUTH_CRED_NAME
+        mock_call.return_value = {'foo': 'bar'}
+        ctxt = context.NovaComputeCephContext()()
+        self.assertEqual(context.CEPH_SECRET_UUID, ctxt['ceph_secret_uuid'])
+        self.assertEqual(context.CEPH_SECRET_UUID, ctxt['rbd_secret_uuid'])
+        self.assertEqual(context.CEPH_AUTH_CRED_NAME, ctxt['service_name'])
+        self.assertEqual(context.CEPH_AUTH_CRED_NAME, ctxt['rbd_user'])
 
     @patch('charmhelpers.contrib.openstack.context.CephContext.__call__')
     def test_rbd_replicated_pool(self, mock_call):
