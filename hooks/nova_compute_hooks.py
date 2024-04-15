@@ -23,8 +23,11 @@ import os
 import subprocess
 import grp
 import shutil
+import yaml
 
 import charmhelpers.core.unitdata as unitdata
+
+from charmhelpers.core.kernel import modprobe
 
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -34,6 +37,8 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     INFO,
+    ERROR,
+    WARNING,
     relation_ids,
     remote_service_name,
     related_units,
@@ -243,6 +248,7 @@ def config_changed():
             send_remote_restart = True
 
     sysctl_settings = config('sysctl')
+    ensure_nf_conntrack_module_loaded(sysctl_settings)
     if sysctl_settings and not is_container():
         create_sysctl(
             sysctl_settings,
@@ -315,6 +321,29 @@ def config_changed():
     configure_local_ephemeral_storage()
 
     check_and_start_iscsid()
+
+
+def ensure_nf_conntrack_module_loaded(sysctl_str):
+    """Loads and writes nf_conntrack to /etc/modules if present in sysctls."""
+    # abort if empty or container
+    if not sysctl_str or is_container():
+        return
+
+    try:
+        sysctl_dict = yaml.safe_load(sysctl_str)
+    except yaml.YAMLError:
+        log("Error parsing YAML sysctl_dict: {}".format(sysctl_str),
+            level=ERROR)
+        return
+
+    if any("nf_conntrack" in key for key in sysctl_dict.keys()):
+        try:
+            # this call loads the module and writes an entry in /etc/modules
+            # for automatic loading at early boot
+            modprobe("nf_conntrack")
+        except Exception as e:
+            log("Failed to load or persist nf_conntrack"
+                " kernel module: {}".format(e), level=WARNING)
 
 
 def update_all_configs():
