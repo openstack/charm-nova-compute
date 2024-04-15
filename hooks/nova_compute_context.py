@@ -272,7 +272,9 @@ class NovaComputeLibvirtContext(context.OSContextGenerator):
         elif ctxt['arch'] == 's390x':
             ctxt['cpu_mode'] = 'none'
 
-        if config('cpu-model'):
+        if config('cpu-models'):
+            ctxt['cpu_models'] = config('cpu-models')
+        elif config('cpu-model'):
             ctxt['cpu_model'] = config('cpu-model')
 
         if config('cpu-model-extra-flags'):

@@ -842,6 +842,41 @@ class NovaComputeContextTests(CharmTestCase):
         self.assertEqual(libvirt()['cpu_mode'],
                          'none')
 
+    @patch.object(context.uuid, 'uuid4')
+    def test_libvirt_cpu_mode_custom_model(self, mock_uuid):
+        self.test_config.set('cpu-mode', 'custom')
+        self.test_config.set('cpu-model', 'Broadwell')
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
+        mock_uuid.return_value = 'e46e530d-18ae-4a67-9ff0-e6e2ba7c60a7'
+        libvirt = context.NovaComputeLibvirtContext()
+
+        self.assertEqual(libvirt()['cpu_mode'], 'custom')
+        self.assertEqual(libvirt()['cpu_model'], 'Broadwell')
+
+        # should be ignored
+        self.test_config.set('cpu-mode', 'host-model')
+        self.test_config.set('cpu-model', 'Haswell')
+        libvirt = context.NovaComputeLibvirtContext()
+        self.assertNotIn('cpu-model', libvirt())
+
+    @patch.object(context.uuid, 'uuid4')
+    def test_libvirt_cpu_mode_custom_models(self, mock_uuid):
+        self.test_config.set('cpu-mode', 'custom')
+        self.test_config.set('cpu-models',
+                             'SandyBridge,IvyBridge,Haswell,Broadwell')
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'bionic'}
+        mock_uuid.return_value = 'e46e530d-18ae-4a67-9ff0-e6e2ba7c60a7'
+        libvirt = context.NovaComputeLibvirtContext()
+
+        self.assertEqual(libvirt()['cpu_mode'], 'custom')
+        self.assertEqual(libvirt()['cpu_models'],
+                         'SandyBridge,IvyBridge,Haswell,Broadwell')
+
+        # should be ignored
+        self.test_config.set('cpu-model', 'Haswell')
+        libvirt = context.NovaComputeLibvirtContext()
+        self.assertNotIn('cpu_model', libvirt())
+
     @patch.object(context, 'platform')
     @patch.object(context.uuid, 'uuid4')
     def test_libvirt_cpu_mode_aarch64(self, mock_uuid, mock_platform):

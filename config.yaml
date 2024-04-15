@@ -395,6 +395,27 @@ options:
       Set to a named libvirt CPU model (see names listed in
       /usr/share/libvirt/cpu_map.xml). Only has effect if cpu_mode='custom' and
       virt_type='kvm|qemu'.
+      .
+      Starting from the Train release this option is deprecated and
+      has been superseded by the 'cpu-models' option. This option will be
+      silently ignored if the 'cpu-models' option is non-empty.
+  cpu-models:
+    type: string
+    default:
+    description: |
+      An ordered, comma separated, list of the CPU models supported by the host.
+      The models on the list must be ordered according to the features they
+      support. The less advanced models must precede more advanced, feature
+      rich, models.
+      .
+      Example: 'SandyBridge,IvyBridge,Haswell,Broadwell'
+      .
+      CPU models are listed in:
+        * /usr/share/libvirt/cpu_map.xml (libvirt version < 4.7.0)
+        * /usr/share/libvirt/cpu_map/*.xml (libvirt version >= 4.7.0)
+      .
+      This option only has effect if cpu_mode='custom' and
+      virt_type='kvm|qemu'.
   cpu-model-extra-flags:
     type: string
     default:
