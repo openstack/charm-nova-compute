@@ -454,6 +454,89 @@ class NovaComputeRelationsTests(CharmTestCase):
             user='nova'
         )
 
+    @patch.object(hooks, 'is_container')
+    @patch('yaml.safe_load')
+    def test_ensure_nf_conntrack_module_loaded_empty(
+            self, safe_load, is_container):
+        is_container.return_value = False
+        hooks.ensure_nf_conntrack_module_loaded("")
+        safe_load.assert_not_called()
+
+    @patch.object(hooks, 'is_container')
+    @patch('yaml.safe_load')
+    def test_ensure_nf_conntrack_module_loaded_container(
+            self, safe_load, is_container):
+        is_container.return_value = True
+        hooks.ensure_nf_conntrack_module_loaded("foo")
+        safe_load.assert_not_called()
+
+    @patch.object(hooks, 'modprobe')
+    @patch.object(hooks, 'is_container')
+    @patch('yaml.safe_load')
+    def test_ensure_nf_conntrack_module_loaded_failed_yaml(
+            self, safe_load, is_container, modprobe):
+        is_container.return_value = False
+        hooks.ensure_nf_conntrack_module_loaded("foo")
+        safe_load.assert_called_once_with("foo")
+        modprobe.assert_not_called()
+
+    @patch.object(hooks, 'log')
+    @patch.object(hooks, 'modprobe')
+    @patch.object(hooks, 'is_container')
+    def test_ensure_nf_conntrack_module_loaded_failed_mobprobe(
+            self, is_container, modprobe, log):
+        is_container.return_value = False
+        modprobe.side_effect = Exception("FOO")
+        data = ("{ net.ipv4.neigh.default.gc_thresh1 : 128,"
+                "net.ipv4.neigh.default.gc_thresh2 : 28672,"
+                "net.ipv4.neigh.default.gc_thresh3 : 32768,"
+                "net.ipv6.neigh.default.gc_thresh1 : 128,"
+                "net.ipv6.neigh.default.gc_thresh2 : 28672,"
+                "net.ipv6.neigh.default.gc_thresh3 : 32768,"
+                "net.nf_conntrack_max : 1000000,"
+                "net.netfilter.nf_conntrack_buckets : 204800,"
+                "net.netfilter.nf_conntrack_max : 1000000 }")
+        hooks.ensure_nf_conntrack_module_loaded(data)
+        log.assert_called_once_with(
+            "Failed to load or persist nf_conntrack kernel module: FOO",
+            level="WARNING")
+        modprobe.assert_called_once_with("nf_conntrack")
+
+    @patch.object(hooks, 'log')
+    @patch.object(hooks, 'modprobe')
+    @patch.object(hooks, 'is_container')
+    def test_ensure_nf_conntrack_module_loaded(
+            self, is_container, modprobe, log):
+        is_container.return_value = False
+        data = ("{ net.ipv4.neigh.default.gc_thresh1 : 128,"
+                "net.ipv4.neigh.default.gc_thresh2 : 28672,"
+                "net.ipv4.neigh.default.gc_thresh3 : 32768,"
+                "net.ipv6.neigh.default.gc_thresh1 : 128,"
+                "net.ipv6.neigh.default.gc_thresh2 : 28672,"
+                "net.ipv6.neigh.default.gc_thresh3 : 32768,"
+                "net.nf_conntrack_max : 1000000,"
+                "net.netfilter.nf_conntrack_buckets : 204800,"
+                "net.netfilter.nf_conntrack_max : 1000000 }")
+        hooks.ensure_nf_conntrack_module_loaded(data)
+        log.assert_not_called()
+        modprobe.assert_called_once_with("nf_conntrack")
+
+    @patch.object(hooks, 'log')
+    @patch.object(hooks, 'modprobe')
+    @patch.object(hooks, 'is_container')
+    def test_ensure_nf_conntrack_module_loaded_no_sysctl(
+            self, is_container, modprobe, log):
+        is_container.return_value = False
+        data = ("{ net.ipv4.neigh.default.gc_thresh1 : 128,"
+                "net.ipv4.neigh.default.gc_thresh2 : 28672,"
+                "net.ipv4.neigh.default.gc_thresh3 : 32768,"
+                "net.ipv6.neigh.default.gc_thresh1 : 128,"
+                "net.ipv6.neigh.default.gc_thresh2 : 28672,"
+                "net.ipv6.neigh.default.gc_thresh3 : 32768 }")
+        hooks.ensure_nf_conntrack_module_loaded(data)
+        modprobe.assert_not_called()
+        log.assert_not_called()
+
     def test_amqp_joined(self):
         hooks.amqp_joined()
         self.relation_set.assert_called_with(
