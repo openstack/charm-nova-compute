@@ -573,8 +573,8 @@ class NovaComputeContextTests(CharmTestCase):
         self.test_config.set('enable-live-migration', True)
         self.test_config.set('migration-auth-type', 'ssh')
         self.os_release.return_value = 'kilo'
-        self.assertEquals(context.NovaComputeLibvirtContext()()[
-                          'live_migration_uri'], 'qemu+ssh://%s/system')
+        self.assertEqual(context.NovaComputeLibvirtContext()()[
+                         'live_migration_uri'], 'qemu+ssh://%s/system')
 
     def test_libvirt_context_with_migration_network(self):
         self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
@@ -597,9 +597,9 @@ class NovaComputeContextTests(CharmTestCase):
         self.get_relation_ip.assert_called_with('migration',
                                                 cidr_network=None)
         self.assertTrue('live_migration_uri' not in libvirt_context.keys())
-        self.assertEquals(libvirt_context['live_migration_scheme'], 'ssh')
-        self.assertEquals(libvirt_context['live_migration_inbound_addr'],
-                          '10.5.0.5')
+        self.assertEqual(libvirt_context['live_migration_scheme'], 'ssh')
+        self.assertEqual(libvirt_context['live_migration_inbound_addr'],
+                         '10.5.0.5')
 
     def test_libvirt_bin_context_migration_tcp_listen_with_auto_converge(self):
         self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})

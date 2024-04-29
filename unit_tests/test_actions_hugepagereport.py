@@ -50,6 +50,5 @@ class MainTestCase(CharmTestCase):
         self.assertEqual(len(dummy_action), 1)
         d = dummy_action[0]
         self.assertIsInstance(d, dict)
-        self.assert_('hugepagestats' in d)
-        self.assert_(
-            d['hugepagestats'].find('/free_hugepages') != -1)
+        self.assertIn('hugepagestats', d)
+        self.assertNotEqual(d['hugepagestats'].find('/free_hugepages'), -1)
