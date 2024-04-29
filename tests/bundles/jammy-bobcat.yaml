@@ -102,7 +102,7 @@ applications:
       - '14'
       - '15'
       - '16'
-    channel: reef/edge
+    channel: squid/edge
 
   ceph-mon:
     charm: ch:ceph-mon
@@ -114,7 +114,7 @@ applications:
       - '17'
       - '18'
       - '19'
-    channel: reef/edge
+    channel: squid/edge
 
   rabbitmq-server:
     charm: ch:rabbitmq-server
