@@ -1,11 +1,9 @@
 charm_name: nova-compute
 
 smoke_bundles:
-  - jammy-caracal
+  - noble-caracal
 gate_bundles:
-  - jammy-antelope
-  - jammy-bobcat
-  - jammy-caracal
+  - noble-caracal
 dev_bundles:
   - noble-caracal
 configure:
@@ -36,6 +34,3 @@ tests:
   - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
   - zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation
 
-tests_options:
-  force_deploy:
-    - noble-caracal
