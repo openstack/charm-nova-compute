@@ -1434,6 +1434,34 @@ class InstanceConsoleContextTest(CharmTestCase):
 
         self.assertEqual(ctxt['spice_agent_enabled'], True, str(ctxt))
 
+    @patch.object(context.platform, 'machine')
+    @patch.object(context, 'resolve_address')
+    @patch.object(context, 'relation_ids')
+    @patch.object(context, 'related_units')
+    def test_spice_s390x(self, mock_related_units, mock_relation_ids,
+                         mock_resolve_address, mock_machine):
+        mock_relation_ids.return_value = ['cloud-compute:15']
+        mock_related_units.return_value = ['nova-compute/0']
+        mock_resolve_address.return_value = "internal-address"
+        mock_machine.return_value = "s390x"
+
+        rel_settings = {
+            'console_access_protocol': 'spice',
+            'spice_agent_enabled': True,
+            'console_keymap': 'en-us',
+            'console_proxy_spice_address': 'http://1.2.3.4:56/spice_auto.html',
+            'console_proxy_spice_host': '1.2.3.4',
+            'console_proxy_spice_port': '56',
+        }
+
+        def rel_get(key, rid, unit):
+            return rel_settings[key]
+
+        self.relation_get.side_effect = rel_get
+
+        ctxt = context.InstanceConsoleContext()()
+        self.assertEqual(ctxt, {})
+
 
 class NovaComputeCephContextTest(CharmTestCase):
 
