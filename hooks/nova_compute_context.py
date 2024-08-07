@@ -868,6 +868,12 @@ class InstanceConsoleContext(context.OSContextGenerator):
     def __call__(self):
         ctxt = {}
 
+        arch = platform.machine()
+        if arch == 's390x':
+            log('Skipping instance console config for arch={}'.format(arch),
+                level=INFO)
+            return {}
+
         for rid in relation_ids('cloud-compute'):
             for unit in related_units(rid):
                 rel = {'rid': rid, 'unit': unit}
