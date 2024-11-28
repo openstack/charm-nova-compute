@@ -585,7 +585,9 @@ class NovaComputeRelationsTests(CharmTestCase):
             'availability_zone': 'az1',
         })
 
-    def test_compute_joined_with_ssh_migration(self):
+    @patch.object(NovaComputeHostInfoContext, '__call__')
+    def test_compute_joined_with_ssh_migration(self, mock_get_fqdn):
+        mock_get_fqdn.return_value = {'host_fqdn': 'testserver.foreal'}
         self.migration_enabled.return_value = True
         self.test_config.set('migration-auth-type', 'ssh')
         self.public_ssh_key.return_value = 'foo'
@@ -594,7 +596,7 @@ class NovaComputeRelationsTests(CharmTestCase):
             'relation_id': None,
             'ssh_public_key': 'foo',
             'migration_auth_type': 'ssh',
-            'hostname': 'testserver',
+            'hostname': 'testserver.foreal',
             'private-address': '10.0.0.50',
         })
         hooks.compute_joined(rid='cloud-compute:2')
@@ -602,14 +604,16 @@ class NovaComputeRelationsTests(CharmTestCase):
             'relation_id': 'cloud-compute:2',
             'ssh_public_key': 'foo',
             'migration_auth_type': 'ssh',
-            'hostname': 'testserver',
+            'hostname': 'testserver.foreal',
             'private-address': '10.0.0.50',
         })
         self.get_relation_ip.assert_called_with(
             'migration', cidr_network=None
         )
 
-    def test_compute_joined_with_resize(self):
+    @patch.object(NovaComputeHostInfoContext, '__call__')
+    def test_compute_joined_with_resize(self, mock_get_fqdn):
+        mock_get_fqdn.return_value = {'host_fqdn': 'testserver.foreal'}
         self.migration_enabled.return_value = False
         self.test_config.set('enable-resize', True)
         self.public_ssh_key.return_value = 'bar'
@@ -617,14 +621,14 @@ class NovaComputeRelationsTests(CharmTestCase):
         self.relation_set.assert_called_with(**{
             'relation_id': None,
             'nova_ssh_public_key': 'bar',
-            'hostname': 'testserver',
+            'hostname': 'testserver.foreal',
             'private-address': '10.0.0.50',
         })
         hooks.compute_joined(rid='cloud-compute:2')
         self.relation_set.assert_called_with(**{
             'relation_id': 'cloud-compute:2',
             'nova_ssh_public_key': 'bar',
-            'hostname': 'testserver',
+            'hostname': 'testserver.foreal',
             'private-address': '10.0.0.50',
         })
         self.get_relation_ip.assert_called_with(
