@@ -438,7 +438,7 @@ def compute_joined(rid=None):
     # record so won't get scanned based on private-address which is an IP
     # add the hostname configured locally to the relation.
     settings = {
-        'hostname': gethostname(),
+        'hostname': NovaComputeHostInfoContext()().get('host_fqdn'),
         'private-address': get_relation_ip(
             'migration', cidr_network=config('libvirt-migration-network')),
     }
