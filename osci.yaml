@@ -11,6 +11,7 @@
       needs_charm_build: true
       charm_build_name: nova-compute
       build_type: charmcraft
+      charmcraft_channel: 2.x/stable
 
 - job:
     name: ceph-focal-ussuri_nova
