@@ -612,8 +612,10 @@ class NovaComputeUtilsTests(CharmTestCase):
         self.assertTrue(utils.NOVA_COMPUTE_CONF in result)
         self.assertEqual(
             result[utils.NOVA_COMPUTE_CONF]["services"], ["nova-compute"])
-        self.assertEqual(
-            result[utils.NOVA_COMPUTE_CONF]["contexts"], [])
+        self.assertEqual(len(result[utils.NOVA_COMPUTE_CONF]["contexts"]), 1)
+        self.assertTrue(
+            isinstance(result[utils.NOVA_COMPUTE_CONF]["contexts"][0],
+                       compute_context.NovaComputeVirtContext))
 
     @patch.object(utils, 'nova_metadata_requirement')
     def test_resource_map_ironic(self, _metadata):

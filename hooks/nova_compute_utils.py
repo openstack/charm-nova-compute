@@ -395,7 +395,7 @@ def resource_map():
         if cmp_os_release < 'victoria':
             resource_map[NOVA_COMPUTE_CONF] = {
                 "services": ["nova-compute"],
-                "contexts": [],
+                "contexts": [NovaComputeVirtContext()],
             }
 
     cmp_distro_codename = CompareHostReleases(
