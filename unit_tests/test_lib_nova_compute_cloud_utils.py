@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import configparser
+
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -30,6 +32,23 @@ class NovaHypervisorMock:
     def __init__(self, hostname, running_vms=0):
         self.hypervisor_hostname = hostname
         self.running_vms = running_vms
+
+
+class TestCloudUtilsNovaCfg(TestCase):
+    def test_nova_cfg_allows_duplicate_keys(self):
+        _conf = """
+        [pci]
+        alias = first
+        alias = second
+        """
+
+        def fake_read(self, filename, encoding=None):
+            self.read_string(_conf)
+            return ['dummy']
+
+        with patch.object(configparser.ConfigParser, "read", new=fake_read):
+            cfg = cloud_utils._nova_cfg()
+            self.assertEqual(cfg["pci"]["alias"], "second")
 
 
 class TestCloudUtils(TestCase):
