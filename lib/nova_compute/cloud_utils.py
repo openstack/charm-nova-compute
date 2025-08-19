@@ -32,7 +32,14 @@ def _nova_cfg():
     :return: Parsed nova config
     :rtype: configparser.ConfigParser
     """
-    nova_cfg = configparser.ConfigParser()
+    # seyeongkim, bui: ConfigParser raises an error
+    # when it encounters duplicate keys.
+    # Use strict=False to avoid this error.
+    # e.g 'alias' can be specified multiple times
+    # as shown in the Nova documentation:
+    # https://docs.openstack.org/nova/latest/configuration/config.html#pci
+    # The charm itself doesn't use multiple keys, so try to avoid them.
+    nova_cfg = configparser.ConfigParser(strict=False)
     nova_cfg.read('/etc/nova/nova.conf')
     return nova_cfg
 
