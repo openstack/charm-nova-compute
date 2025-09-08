@@ -565,7 +565,9 @@ class NovaComputeContextTests(CharmTestCase):
              'inject_partition': -2,
              'block_device_allocate_retries': 300,
              'reserved_host_disk': 0,
-             'reserved_host_memory': 512}, libvirt())
+             'reserved_host_memory': 512,
+             'skip_cpu_compare_at_startup': False,
+             'skip_cpu_compare_on_dest': False}, libvirt())
 
     def test_libvirt_context_without_migration_network(self):
         self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
@@ -629,7 +631,9 @@ class NovaComputeContextTests(CharmTestCase):
              'block_device_allocate_retries': 300,
              'default_ephemeral_format': 'ext4',
              'reserved_host_disk': 0,
-             'reserved_host_memory': 512}, libvirt())
+             'reserved_host_memory': 512,
+             'skip_cpu_compare_at_startup': False,
+             'skip_cpu_compare_on_dest': False}, libvirt())
 
     def test_libvirt_bin_context_migration_tcp_listen_with_post_copy(self):
         self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
@@ -659,7 +663,42 @@ class NovaComputeContextTests(CharmTestCase):
              'inject_partition': -2,
              'block_device_allocate_retries': 300,
              'reserved_host_disk': 0,
-             'reserved_host_memory': 512}, libvirt())
+             'reserved_host_memory': 512,
+             'skip_cpu_compare_at_startup': False,
+             'skip_cpu_compare_on_dest': False}, libvirt())
+
+    def test_libvirt_skip_cpu_compare(self):
+        self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'lucid'}
+        self.test_config.set('enable-live-migration', True)
+        self.test_config.set('skip_cpu_compare_at_startup', True)
+        self.test_config.set('skip_cpu_compare_on_dest', True)
+        libvirt = context.NovaComputeLibvirtContext()
+
+        self.assertEqual(
+            {'libvirtd_opts': '-d -l',
+             'libvirt_user': 'libvirtd',
+             'arch': platform.machine(),
+             'ksm': 'AUTO',
+             'kvm_hugepages': 0,
+             'listen_tls': 0,
+             'host_uuid': self.host_uuid,
+             'live_migration_uri': 'qemu+ssh://%s/system',
+             'live_migration_completion_timeout': 800,
+             'live_migration_downtime': 500,
+             'live_migration_downtime_delay': 75,
+             'live_migration_downtime_steps': 10,
+             'live_migration_permit_auto_converge': False,
+             'live_migration_permit_post_copy': False,
+             'default_ephemeral_format': 'ext4',
+             'force_raw_images': True,
+             'inject_password': False,
+             'inject_partition': -2,
+             'block_device_allocate_retries': 300,
+             'reserved_host_disk': 0,
+             'reserved_host_memory': 512,
+             'skip_cpu_compare_at_startup': True,
+             'skip_cpu_compare_on_dest': True}, libvirt())
 
     def test_libvirt_disk_cachemodes(self):
         self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
