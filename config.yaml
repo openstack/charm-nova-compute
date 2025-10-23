@@ -953,3 +953,13 @@ options:
       Enable emulated Trusted Platform Module support on the hypervisors.
       A key manager, e.g. Barbican, is a required service for this
       capability to be enabled.
+  dbus-max-replies-per-connection:
+    type: int
+    default: 1000
+    description: |
+      The system default value for max-replies-per-connection in dbus may
+      not be enough for hypervisors with large numbers of instances. This
+      can be a problem when resume-guests-state-on-host-boot is True. We
+      use a custom default here and it can be set higher if not enough for
+      nodes with very large numbers of vms.
+

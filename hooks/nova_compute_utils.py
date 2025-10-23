@@ -117,6 +117,7 @@ from nova_compute_context import (
     NovaComputeSWTPMContext,
     VirtMkfsContext,
     NovaComputeHostInfoContext,
+    NovaComputeDBUSContext,
 )
 
 import charmhelpers.contrib.openstack.vaultlocker as vaultlocker
@@ -184,10 +185,13 @@ SWTPM_PACKAGES = [
     'swtpm-tools',
 ]
 
+DBUS_PACKAGES = ['libvirt-dbus']
+
 VERSION_PACKAGE = 'nova-common'
 
 DEFAULT_INSTANCE_PATH = '/var/lib/nova/instances'
 NOVA_CONF_DIR = "/etc/nova"
+DBUS_CONF = '/etc/dbus-1/system.d/org.libvirt.conf'
 QEMU_CONF = '/etc/libvirt/qemu.conf'
 LIBVIRTD_CONF = '/etc/libvirt/libvirtd.conf'
 LIBVIRT_BIN = '/etc/default/libvirt-bin'
@@ -277,7 +281,13 @@ BASE_RESOURCE_MAP = {
 LIBVIRTD_DAEMON = 'libvirtd'
 LIBVIRT_BIN_DAEMON = 'libvirt-bin'
 
+DBUS_SERVICE = 'dbus'
+
 LIBVIRT_RESOURCE_MAP = {
+    DBUS_CONF: {
+        'services': [DBUS_SERVICE],
+        'contexts': [NovaComputeDBUSContext()],
+    },
     QEMU_CONF: {
         'services': [LIBVIRT_BIN_DAEMON],
         'contexts': [NovaComputeLibvirtContext(),
@@ -1081,12 +1091,19 @@ def resume_unit_helper(configs):
 
 def services_to_pause_or_resume():
     if "post-series-upgrade" in hook_name():
-        return services()
+        _services = services()
     else:
         # WARNING(lourot): the list ordering is important. See services() for
         # more details.
-        return [service for service in services()
-                if service != libvirt_daemon()]
+        _services = [service for service in services()
+                     if service != libvirt_daemon()]
+
+    # We must not pause the dbus service
+    if DBUS_SERVICE in _services:
+        idx = _services.index(DBUS_SERVICE)
+        _services.pop(idx)
+
+    return _services
 
 
 def _pause_resume_helper(f, configs):
