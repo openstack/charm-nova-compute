@@ -421,6 +421,11 @@ class NovaComputeUtilsTests(CharmTestCase):
                 'contexts': [],
                 'services': ['nova-compute']
             },
+            '/etc/dbus-1/system.d/org.libvirt.conf':
+            {
+                'contexts': [],
+                'services': ['dbus']
+            },
         }
         # Mocking contexts is tricky but we can still test that
         # the correct files are monitored and the correct services
@@ -478,6 +483,11 @@ class NovaComputeUtilsTests(CharmTestCase):
             '/etc/apparmor.d/usr.bin.nova-compute': {
                 'contexts': [],
                 'services': ['nova-compute']
+            },
+            '/etc/dbus-1/system.d/org.libvirt.conf':
+            {
+                'contexts': [],
+                'services': ['dbus']
             },
         }
         # Mocking contexts is tricky but we can still test that
@@ -552,7 +562,11 @@ class NovaComputeUtilsTests(CharmTestCase):
                 'contexts': [],
                 'services': ['nova-api']
             },
-
+            '/etc/dbus-1/system.d/org.libvirt.conf':
+            {
+                'contexts': [],
+                'services': ['dbus']
+            },
         }
         # Mocking contexts is tricky but we can still test that
         # the correct files are monitored and the correct services
@@ -609,6 +623,11 @@ class NovaComputeUtilsTests(CharmTestCase):
             '/etc/apparmor.d/usr.bin.nova-compute': {
                 'contexts': [],
                 'services': ['nova-compute']
+            },
+            '/etc/dbus-1/system.d/org.libvirt.conf':
+            {
+                'contexts': [],
+                'services': ['dbus']
             },
         }
         # Mocking contexts is tricky but we can still test that
