@@ -1092,6 +1092,14 @@ class NovaComputeSWTPMContext(context.OSContextGenerator):
         return ctxt
 
 
+class NovaComputeDBUSContext(context.OSContextGenerator):
+
+    def __call__(self):
+        reply_limit = config('dbus-max-replies-per-connection')
+        if reply_limit:
+            return {'reply_limit': reply_limit}
+
+
 class NovaComputeHostInfoContext(context.HostInfoContext):
 
     USE_FQDN_KEY = 'nova-compute-charm-use-fqdn'
