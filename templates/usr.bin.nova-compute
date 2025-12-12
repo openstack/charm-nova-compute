@@ -34,6 +34,7 @@
   /dev/ r,
   /dev/disk/** r,
   /dev/disk/by-id/* r,
+  /dev/dm-* r,
   /dev/mapper/control wr,
   /dev/nbd* rw,
   /dev/tty rw,
