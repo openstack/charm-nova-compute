@@ -8,14 +8,10 @@
 #       all of its own requirements and if it doesn't, fix it there.
 #
 pyparsing<3.0.0  # aodhclient is pinned in zaza and needs pyparsing < 3.0.0, but cffi also needs it, so pin here.
-
+looseversion  # distutils.version.LooseVersion replacement for Python 3.12+
 requests>=2.18.4
 
 stestr>=2.2.0
-
-# Dependency of stestr. Workaround for
-# https://github.com/mtreinish/stestr/issues/145
-cliff<3.0.0
 
 coverage>=4.5.2
 pyudev              # for ceph-* charm unit tests (need to fix the ceph-* charm unit tests/mocking)
