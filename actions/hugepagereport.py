@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
 import os
 import sys
 
@@ -29,7 +30,6 @@ def _add_path(path):
 _add_path(_hooks)
 
 
-import subprocess
 from charmhelpers.core import hookenv
 
 SYSFS = '/sys'
@@ -41,16 +41,30 @@ def hugepages_report():
     hugepage allocation. Takes no params.
     '''
     outmap = {}
-    try:
-        devp = "{}/devices/system/node/node*/hugepages/*/*".format(SYSFS)
-        outmap['hugepagestats'] = subprocess.check_output(
-            "grep -H . {}".format(devp),
-            shell=True).decode('UTF-8')
-    except subprocess.CalledProcessError as e:
-        hookenv.log(e)
-        hookenv.action_fail(
-            "Getting hugepages report failed: {}".format(e)
-        )
+    stats = []
+
+    # Only target the specific metrics of interest:
+    # This avoids write-only files and unnecessary noise
+    target_metrics = ['nr_hugepages', 'free_hugepages', 'surplus_hugepages']
+    files = []
+
+    for m in target_metrics:
+        path = "{}/devices/system/node/node*/hugepages/*/{}".format(SYSFS, m)
+        files.extend(glob.glob(path))
+
+    for f in files:
+        try:
+            with open(f, 'r') as fh:
+                for line in fh:
+                    line = line.strip()
+                    # only include non-empty lines in output
+                    if line:
+                        stats.append("{}:{}".format(f, line))
+        except IOError as e:
+            hookenv.log("Could not read file {}: {}".format(f, e))
+
+    outmap['hugepagestats'] = "\n".join(stats)
+
     with open(KERNELCMD, 'rb') as cmdline:
         try:
             outmap['kernelcmd'] = cmdline.read().strip()
