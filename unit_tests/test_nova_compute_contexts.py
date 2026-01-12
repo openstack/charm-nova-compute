@@ -671,8 +671,8 @@ class NovaComputeContextTests(CharmTestCase):
         self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
         self.lsb_release.return_value = {'DISTRIB_CODENAME': 'lucid'}
         self.test_config.set('enable-live-migration', True)
-        self.test_config.set('skip_cpu_compare_at_startup', True)
-        self.test_config.set('skip_cpu_compare_on_dest', True)
+        self.test_config.set('skip-cpu-compare-at-startup', True)
+        self.test_config.set('skip-cpu-compare-on-dest', True)
         libvirt = context.NovaComputeLibvirtContext()
 
         self.assertEqual(
