@@ -258,9 +258,9 @@ class NovaComputeLibvirtContext(context.OSContextGenerator):
             ctxt['live_migration_permit_auto_converge'] = \
                 config('live-migration-permit-auto-converge')
             ctxt['skip_cpu_compare_at_startup'] = \
-                config('skip_cpu_compare_at_startup')
+                config('skip-cpu-compare-at-startup')
             ctxt['skip_cpu_compare_on_dest'] = \
-                config('skip_cpu_compare_on_dest')
+                config('skip-cpu-compare-on-dest')
 
         if config('instances-path') is not None:
             ctxt['instances_path'] = config('instances-path')
