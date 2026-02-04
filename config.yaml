@@ -183,6 +183,40 @@ options:
         homedir - user's home directory
         username - username
       .
+  skip_cpu_compare_at_startup:
+    type: boolean
+    default: False
+    description: |
+      This will skip the CPU comparison call at the startup of Compute service
+      and lets libvirt handle it.
+      .
+      This is a workaround to avoid live migration erroneous failures in the
+      Nova pre-migration check, which is caused by mixed usage of different
+      libvirt APIs. If the hypervisors are incompatible, libvirt detects the
+      the incompatibility and rollsback the migration. There is a marginal
+      performance hit in this case since the libvirt check comes later than the
+      pre-migration check
+      .
+      # NOTE: This can be removed when https://launchpad.net/nova/+bug/2039803
+      # is fixed
+  skip_cpu_compare_on_dest:
+    type: boolean
+    default: False
+    description: |
+      With the libvirt driver, during live migration, skip comparing guest CPU
+      with the destination host. When using QEMU >= 2.9 and libvirt >= 4.4.0,
+      libvirt will do the correct thing with respect to checking CPU
+      compatibility on the destination host during live migration.
+      .
+      This is a workaround to avoid live migration erroneous failures in the
+      Nova pre-migration check, which is caused by mixed usage of different
+      libvirt APIs. If the hypervisors are incompatible, libvirt detects the
+      the incompatibility and rollsback the migration. There is a marginal
+      performance hit in this case since the libvirt check comes later than the
+      pre-migration check
+      .
+      # NOTE: This can be removed when https://launchpad.net/nova/+bug/2039803
+      # is fixed
   instances-path:
     type: string
     default:
