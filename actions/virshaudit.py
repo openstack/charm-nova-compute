@@ -46,7 +46,7 @@ def virsh_audit():
     except subprocess.CalledProcessError as e:
         hookenv.log(e)
         hookenv.action_fail(
-            "Getting virsh list report failed: {}".format(e.message)
+            "Getting virsh list report failed: {}".format(e)
         )
     hookenv.action_set(outmap)
 

@@ -49,7 +49,7 @@ def hugepages_report():
     except subprocess.CalledProcessError as e:
         hookenv.log(e)
         hookenv.action_fail(
-            "Getting hugepages report failed: {}".format(e.message)
+            "Getting hugepages report failed: {}".format(e)
         )
     with open(KERNELCMD, 'rb') as cmdline:
         try:
