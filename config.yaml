@@ -183,7 +183,7 @@ options:
         homedir - user's home directory
         username - username
       .
-  skip_cpu_compare_at_startup:
+  skip-cpu-compare-at-startup:
     type: boolean
     default: False
     description: |
@@ -199,7 +199,7 @@ options:
       .
       # NOTE: This can be removed when https://launchpad.net/nova/+bug/2039803
       # is fixed
-  skip_cpu_compare_on_dest:
+  skip-cpu-compare-on-dest:
     type: boolean
     default: False
     description: |
