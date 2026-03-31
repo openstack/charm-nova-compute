@@ -10,9 +10,10 @@ description: |
   directly to physical servers.
 docs: https://discourse.charmhub.io/t/nova-compute-docs-index/10552
 tags:
-  - openstack
+- openstack
 series:
-  - jammy
+- jammy
+- noble
 provides:
   cloud-compute:
     interface: nova-compute
