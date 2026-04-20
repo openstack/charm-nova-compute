@@ -849,7 +849,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         get_request_states.return_value = {
             'ceph:43': {'complete': True, 'sent': True}
         }
-        _get_broker_rid_unit_for_previous_request.return_value = 'ceph:43',\
+        _get_broker_rid_unit_for_previous_request.return_value = 'ceph:43', \
                                                                  'ceph-mon/0'
         is_broker_action_done.return_value = False
         hooks._handle_ceph_request()
@@ -876,7 +876,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         get_request_states.return_value = {
             'ceph:43': {'complete': True, 'sent': True}
         }
-        _get_broker_rid_unit_for_previous_request.return_value = 'ceph:43',\
+        _get_broker_rid_unit_for_previous_request.return_value = 'ceph:43', \
                                                                  'ceph-mon/0'
         is_broker_action_done.return_value = True
         hooks._handle_ceph_request()
