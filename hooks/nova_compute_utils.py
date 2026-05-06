@@ -189,6 +189,7 @@ DBUS_PACKAGES = ['libvirt-dbus']
 VERSION_PACKAGE = 'nova-common'
 
 DEFAULT_INSTANCE_PATH = '/var/lib/nova/instances'
+ENCRYPTED_EPHEMERAL_DEVICE_TIMEOUT_DEFAULT = 180
 NOVA_CONF_DIR = "/etc/nova"
 DBUS_CONF = '/etc/dbus-1/system.d/org.libvirt.conf'
 QEMU_CONF = '/etc/libvirt/qemu.conf'
@@ -209,6 +210,58 @@ NOVA_COMPUTE_OVERRIDE_DIR = '/etc/systemd/system/nova-compute.service.d'
 MOUNT_DEPENDENCY_OVERRIDE = '99-mount.conf'
 
 LIBVIRT_TYPES = ['kvm', 'qemu', 'lxc']
+
+
+def encrypted_ephemeral_device_timeout():
+    device_timeout = config('encrypt-device-timeout')
+    if device_timeout is None or device_timeout < 0:
+        return ENCRYPTED_EPHEMERAL_DEVICE_TIMEOUT_DEFAULT
+
+    return device_timeout
+
+
+def update_ephemeral_device_timeout(mountpoint, device_timeout):
+    with Fstab() as fstab:
+        entry = fstab.get_entry_by_attr('mountpoint', mountpoint)
+        options = entry.options.split(',') if entry else []
+        vaultlocker_mount = (
+            'comment=vaultlocker' in options or
+            any(re.match(
+                r'^x-systemd\.requires=vaultlocker-decrypt@[^,\s=]+\.service$',
+                option
+            ) for option in options)
+        )
+        if not vaultlocker_mount:
+            log("Vaultlocker ephemeral mount '{}' not found in fstab; "
+                "skipping timeout update".format(mountpoint), level=DEBUG)
+            return False
+
+        options = [
+            option for option in entry.options.split(',')
+            if option and not option.startswith('x-systemd.device-timeout=')
+        ]
+        options.append('x-systemd.device-timeout={}s'.format(device_timeout))
+        updated_options = ','.join(options)
+
+        if updated_options == entry.options:
+            return True
+
+        updated_entry = deepcopy(entry)
+        updated_entry.options = updated_options
+        if not fstab.remove_entry(entry):
+            log("Failed to remove vaultlocker ephemeral mount '{}' from fstab"
+                .format(mountpoint), level=WARNING)
+            return False
+
+        if fstab.add_entry(updated_entry):
+            return True
+
+        log("Failed to update vaultlocker ephemeral mount '{}' in fstab; "
+            "restoring original entry".format(mountpoint), level=WARNING)
+        if not fstab.add_entry(entry):
+            log("Failed to restore vaultlocker ephemeral mount '{}' in fstab"
+                .format(mountpoint), level=WARNING)
+        return False
 
 
 BASE_RESOURCE_MAP = {
@@ -1165,6 +1218,10 @@ def configure_local_ephemeral_storage():
     if storage_configured:
         log("Ephemeral storage already configured, skipping",
             level=DEBUG)
+        update_ephemeral_device_timeout(
+            mountpoint,
+            encrypted_ephemeral_device_timeout()
+        )
         # NOTE(jamespage):
         # Install mountpoint override to ensure that upgrades
         # to the charm version which supports this change
@@ -1195,6 +1252,8 @@ def configure_local_ephemeral_storage():
 
     options = None
     if encrypt:
+        device_timeout = encrypted_ephemeral_device_timeout()
+
         dev_uuid = str(uuid.uuid4())
         check_call(['vaultlocker', 'encrypt',
                     '--uuid', dev_uuid,
@@ -1205,6 +1264,7 @@ def configure_local_ephemeral_storage():
             "nofail",
             ("x-systemd.requires="
              "vaultlocker-decrypt@{uuid}.service".format(uuid=dev_uuid)),
+            "x-systemd.device-timeout={}s".format(device_timeout),
             "comment=vaultlocker",
         ])
 

@@ -1176,6 +1176,18 @@ class NovaComputeUtilsTests(CharmTestCase):
             charm_func=utils.check_optional_config_and_relations,
             services=['s1'], ports=None)
 
+    def test_get_optional_relations_excludes_vault_without_encryption(self):
+        self.test_config.set('encrypt', False)
+        self.test_config.set('virt-type', 'kvm')
+        self.relation_ids.side_effect = lambda relation: {
+            'secrets-storage': ['secrets-storage:0'],
+        }.get(relation, [])
+
+        self.assertEqual(
+            utils.get_optional_relations(),
+            {}
+        )
+
     def test_pause_unit_helper(self):
         with patch.object(utils, '_pause_resume_helper') as prh:
             utils.pause_unit_helper('random-config')
@@ -1269,6 +1281,14 @@ class NovaComputeUtilsTests(CharmTestCase):
         self.config.assert_called_with('ephemeral-device')
         self.storage_list.assert_called_with('ephemeral-device')
 
+    def test_encrypted_ephemeral_device_timeout_negative_uses_default(self):
+        self.test_config.set('encrypt-device-timeout', -1)
+
+        self.assertEqual(
+            utils.encrypted_ephemeral_device_timeout(),
+            utils.ENCRYPTED_EPHEMERAL_DEVICE_TIMEOUT_DEFAULT
+        )
+
     @patch.object(utils, 'install_mount_override')
     @patch.object(utils, 'filter_installed_packages')
     @patch.object(utils, 'uuid')
@@ -1288,6 +1308,7 @@ class NovaComputeUtilsTests(CharmTestCase):
         mock_context.return_value = 'test_context'
 
         self.test_config.set('encrypt', True)
+        self.test_config.set('encrypt-device-timeout', 300)
         self.vaultlocker.VaultKVContext.return_value = mock_context
         self.is_block_device.return_value = True
         self.is_device_mounted.return_value = False
@@ -1314,9 +1335,12 @@ class NovaComputeUtilsTests(CharmTestCase):
             '/dev/mapper/crypt-test',
             '/var/lib/nova/instances',
             'xfs',
-            options='defaults,nofail,'
-            'x-systemd.requires=vaultlocker-decrypt@test.service,'
-            'comment=vaultlocker'
+            options=(
+                'defaults,nofail,'
+                'x-systemd.requires=vaultlocker-decrypt@test.service,'
+                'x-systemd.device-timeout=300s,'
+                'comment=vaultlocker'
+            )
         )
         install_mount_override.assert_called_with(
             '/var/lib/nova/instances'
@@ -1326,6 +1350,89 @@ class NovaComputeUtilsTests(CharmTestCase):
             'test_context',
             priority=80
         )
+
+    @patch.object(utils, 'install_mount_override')
+    @patch.object(utils, 'filter_installed_packages')
+    @patch.object(utils, 'uuid')
+    @patch.object(utils, 'determine_block_device')
+    def test_configure_local_ephemeral_storage_encrypted_default_timeout(
+            self,
+            determine_block_device,
+            uuid,
+            filter_installed_packages,
+            install_mount_override):
+        filter_installed_packages.return_value = []
+        determine_block_device.return_value = '/dev/sdb'
+        uuid.uuid4.return_value = 'test'
+
+        mock_context = MagicMock()
+        mock_context.complete = True
+        mock_context.return_value = 'test_context'
+
+        self.test_config.set('encrypt', True)
+        self.vaultlocker.VaultKVContext.return_value = mock_context
+        self.is_block_device.return_value = True
+        self.is_device_mounted.return_value = False
+
+        utils.configure_local_ephemeral_storage()
+
+        self.fstab_add.assert_called_with(
+            '/dev/mapper/crypt-test',
+            '/var/lib/nova/instances',
+            'xfs',
+            options=(
+                'defaults,nofail,'
+                'x-systemd.requires=vaultlocker-decrypt@test.service,'
+                'x-systemd.device-timeout=180s,'
+                'comment=vaultlocker'
+            )
+        )
+
+    @patch.object(utils, 'install_mount_override')
+    @patch.object(utils, 'filter_installed_packages')
+    @patch.object(utils, 'uuid')
+    @patch.object(utils, 'determine_block_device')
+    def test_configure_local_ephemeral_storage_not_encrypted_by_relation(
+            self,
+            determine_block_device,
+            uuid,
+            filter_installed_packages,
+            install_mount_override):
+        determine_block_device.return_value = '/dev/sdb'
+        uuid.uuid4.return_value = 'test'
+
+        mock_context = MagicMock()
+        mock_context.complete = True
+        mock_context.return_value = 'test_context'
+
+        self.test_config.set('encrypt', False)
+        self.test_config.set('encrypt-device-timeout', 300)
+        self.relation_ids.return_value = ['secrets-storage:0']
+        self.vaultlocker.VaultKVContext.return_value = mock_context
+        self.is_block_device.return_value = True
+        self.is_device_mounted.return_value = False
+
+        utils.configure_local_ephemeral_storage()
+
+        self.check_call.assert_has_calls([
+            call(['chown', '-R', 'nova:nova',
+                  '/var/lib/nova/instances']),
+            call(['chmod', '-R', '0755',
+                  '/var/lib/nova/instances'])
+        ])
+        self.assertNotIn(
+            call(['vaultlocker', 'encrypt', '--uuid', 'test', '/dev/sdb']),
+            self.check_call.call_args_list
+        )
+        self.fstab_add.assert_called_with(
+            '/dev/sdb',
+            '/var/lib/nova/instances',
+            'xfs',
+            options=None
+        )
+        install_mount_override.assert_called_with('/var/lib/nova/instances')
+        self.assertTrue(self.test_kv.get('storage-configured'))
+        self.vaultlocker.write_vaultlocker_conf.assert_not_called()
 
     @patch.object(utils, 'install_mount_override')
     @patch.object(utils, 'uuid')
@@ -1342,6 +1449,7 @@ class NovaComputeUtilsTests(CharmTestCase):
         mock_context.return_value = {}
 
         self.test_config.set('encrypt', False)
+        self.relation_ids.return_value = []
         self.vaultlocker.VaultKVContext.return_value = mock_context
         self.is_block_device.return_value = True
         self.is_device_mounted.return_value = False
@@ -1389,6 +1497,7 @@ class NovaComputeUtilsTests(CharmTestCase):
         mock_context.return_value = {}
 
         self.test_config.set('encrypt', False)
+        self.relation_ids.return_value = []
         self.test_config.set('instances-path', '/srv/instances')
         self.vaultlocker.VaultKVContext.return_value = mock_context
         self.is_block_device.return_value = True
@@ -1447,6 +1556,232 @@ class NovaComputeUtilsTests(CharmTestCase):
         )
         self.is_block_device.assert_not_called()
         # NOTE: called to deal with charm upgrades
+        install_mount_override.assert_called_with(
+            '/var/lib/nova/instances'
+        )
+
+    @patch.object(utils, 'install_mount_override')
+    @patch.object(utils, 'filter_installed_packages')
+    def test_configure_local_ephemeral_storage_done_updates_fstab_timeout(
+            self,
+            filter_installed_packages,
+            install_mount_override):
+        filter_installed_packages.return_value = []
+        self.test_kv.set('storage-configured', True)
+
+        mock_context = MagicMock()
+        mock_context.complete = True
+        mock_context.return_value = 'test_context'
+
+        entry = MagicMock()
+        entry.mountpoint = '/var/lib/nova/instances'
+        entry.options = (
+            'defaults,nofail,'
+            'x-systemd.requires=vaultlocker-decrypt@test.service,'
+            'comment=vaultlocker'
+        )
+        fstab = self.Fstab.return_value
+        fstab.__enter__.return_value = fstab
+        fstab.get_entry_by_attr.return_value = entry
+        fstab.remove_entry.return_value = True
+        fstab.add_entry.return_value = entry
+
+        self.test_config.set('encrypt', True)
+        self.test_config.set('encrypt-device-timeout', 300)
+        self.vaultlocker.VaultKVContext.return_value = mock_context
+
+        utils.configure_local_ephemeral_storage()
+
+        self.vaultlocker.write_vaultlocker_conf.assert_called_with(
+            'test_context',
+            priority=80
+        )
+        self.Fstab.assert_called_with()
+        fstab.get_entry_by_attr.assert_called_with(
+            'mountpoint',
+            '/var/lib/nova/instances'
+        )
+        self.assertEqual(fstab.remove_entry.call_count, 1)
+        self.assertEqual(fstab.add_entry.call_count, 1)
+        updated_entry = fstab.add_entry.call_args[0][0]
+        self.assertEqual(
+            updated_entry.options,
+            'defaults,nofail,'
+            'x-systemd.requires=vaultlocker-decrypt@test.service,'
+            'comment=vaultlocker,'
+            'x-systemd.device-timeout=300s'
+        )
+        self.mkfs_xfs.assert_not_called()
+        self.mount.assert_not_called()
+        self.fstab_add.assert_not_called()
+        self.check_call.assert_not_called()
+        install_mount_override.assert_called_with(
+            '/var/lib/nova/instances'
+        )
+
+    @patch.object(utils, 'install_mount_override')
+    @patch.object(utils, 'filter_installed_packages')
+    def test_ephemeral_storage_done_updates_timeout_from_vaultlocker_fstab(
+            self,
+            filter_installed_packages,
+            install_mount_override):
+        self.test_kv.set('storage-configured', True)
+
+        mock_context = MagicMock()
+        mock_context.complete = True
+        mock_context.return_value = 'test_context'
+
+        entry = MagicMock()
+        entry.mountpoint = '/var/lib/nova/instances'
+        entry.options = (
+            'defaults,nofail,'
+            'x-systemd.requires=vaultlocker-decrypt@test.service,'
+            'comment=vaultlocker'
+        )
+        fstab = self.Fstab.return_value
+        fstab.__enter__.return_value = fstab
+        fstab.get_entry_by_attr.return_value = entry
+        fstab.remove_entry.return_value = True
+        fstab.add_entry.return_value = entry
+
+        self.test_config.set('encrypt', False)
+        self.test_config.set('encrypt-device-timeout', 300)
+        utils.configure_local_ephemeral_storage()
+
+        self.vaultlocker.write_vaultlocker_conf.assert_not_called()
+        updated_entry = fstab.add_entry.call_args[0][0]
+        self.assertEqual(
+            updated_entry.options,
+            'defaults,nofail,'
+            'x-systemd.requires=vaultlocker-decrypt@test.service,'
+            'comment=vaultlocker,'
+            'x-systemd.device-timeout=300s'
+        )
+        self.mkfs_xfs.assert_not_called()
+        self.mount.assert_not_called()
+        self.fstab_add.assert_not_called()
+        self.check_call.assert_not_called()
+        install_mount_override.assert_called_with(
+            '/var/lib/nova/instances'
+        )
+
+    @patch.object(utils, 'install_mount_override')
+    def test_ephemeral_storage_done_skips_non_vaultlocker_fstab(
+            self, install_mount_override):
+        self.test_kv.set('storage-configured', True)
+
+        entry = MagicMock()
+        entry.mountpoint = '/var/lib/nova/instances'
+        entry.options = 'defaults,nofail,x-systemd.device-timeout=90s'
+        fstab = self.Fstab.return_value
+        fstab.__enter__.return_value = fstab
+        fstab.get_entry_by_attr.return_value = entry
+
+        self.test_config.set('encrypt', False)
+        utils.configure_local_ephemeral_storage()
+
+        fstab.remove_entry.assert_not_called()
+        fstab.add_entry.assert_not_called()
+        install_mount_override.assert_called_with(
+            '/var/lib/nova/instances'
+        )
+
+    def test_update_ephemeral_device_timeout_remove_failure(self):
+        entry = MagicMock()
+        entry.options = 'defaults,comment=vaultlocker'
+        fstab = self.Fstab.return_value
+        fstab.__enter__.return_value = fstab
+        fstab.get_entry_by_attr.return_value = entry
+        fstab.remove_entry.return_value = False
+
+        self.assertFalse(
+            utils.update_ephemeral_device_timeout(
+                '/var/lib/nova/instances', 300
+            )
+        )
+        fstab.add_entry.assert_not_called()
+
+    def test_update_ephemeral_device_timeout_without_comment(self):
+        entry = MagicMock()
+        entry.options = (
+            'defaults,nofail,'
+            'x-systemd.requires=vaultlocker-decrypt@test.service,'
+            'x-systemd.device-timeout=90s'
+        )
+        fstab = self.Fstab.return_value
+        fstab.__enter__.return_value = fstab
+        fstab.get_entry_by_attr.return_value = entry
+        fstab.remove_entry.return_value = True
+        fstab.add_entry.return_value = entry
+
+        self.assertTrue(
+            utils.update_ephemeral_device_timeout(
+                '/var/lib/nova/instances', 300
+            )
+        )
+        updated_entry = fstab.add_entry.call_args[0][0]
+        self.assertEqual(
+            updated_entry.options,
+            'defaults,nofail,'
+            'x-systemd.requires=vaultlocker-decrypt@test.service,'
+            'x-systemd.device-timeout=300s'
+        )
+
+    def test_update_ephemeral_device_timeout_add_failure(self):
+        entry = MagicMock()
+        entry.options = 'defaults,comment=vaultlocker'
+        fstab = self.Fstab.return_value
+        fstab.__enter__.return_value = fstab
+        fstab.get_entry_by_attr.return_value = entry
+        fstab.remove_entry.return_value = True
+        fstab.add_entry.side_effect = [False, entry]
+
+        self.assertFalse(
+            utils.update_ephemeral_device_timeout(
+                '/var/lib/nova/instances', 300
+            )
+        )
+        self.assertEqual(fstab.add_entry.call_count, 2)
+
+    @patch.object(utils, 'install_mount_override')
+    @patch.object(utils, 'filter_installed_packages')
+    def test_configure_local_ephemeral_storage_done_default_timeout(
+            self,
+            filter_installed_packages,
+            install_mount_override):
+        filter_installed_packages.return_value = []
+        self.test_kv.set('storage-configured', True)
+
+        mock_context = MagicMock()
+        mock_context.complete = True
+        mock_context.return_value = 'test_context'
+
+        entry = MagicMock()
+        entry.mountpoint = '/var/lib/nova/instances'
+        entry.options = (
+            'defaults,nofail,'
+            'x-systemd.requires=vaultlocker-decrypt@test.service,'
+            'comment=vaultlocker'
+        )
+        fstab = self.Fstab.return_value
+        fstab.__enter__.return_value = fstab
+        fstab.get_entry_by_attr.return_value = entry
+        fstab.remove_entry.return_value = True
+        fstab.add_entry.return_value = entry
+
+        self.test_config.set('encrypt', True)
+        self.vaultlocker.VaultKVContext.return_value = mock_context
+
+        utils.configure_local_ephemeral_storage()
+
+        updated_entry = fstab.add_entry.call_args[0][0]
+        self.assertEqual(
+            updated_entry.options,
+            'defaults,nofail,'
+            'x-systemd.requires=vaultlocker-decrypt@test.service,'
+            'comment=vaultlocker,'
+            'x-systemd.device-timeout=180s'
+        )
         install_mount_override.assert_called_with(
             '/var/lib/nova/instances'
         )

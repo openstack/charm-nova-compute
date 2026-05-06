@@ -20,6 +20,9 @@ target_deploy_status:
   barbican-vault:
     workload-status: waiting
     workload-status-message-prefix: "'secrets-storage' incomplete"
+  nova-compute:
+    workload-status: waiting
+    workload-status-message-prefix: "Incomplete relations: vault"
   vault:
     workload-status: blocked
     workload-status-message-prefix: "Vault needs to be initialized"
