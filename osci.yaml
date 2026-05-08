@@ -11,12 +11,12 @@
       needs_charm_build: true
       charm_build_name: nova-compute
       build_type: charmcraft
+      charmcraft_channel: 3.x/stable
 
 - job:
     name: ceph-focal-xena_nova
     parent: func-target
     dependencies:
-      - charm-build
       - osci-lint
       - tox-py38
       - name: tox-py310

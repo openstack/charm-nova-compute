@@ -2,35 +2,33 @@ type: charm
 
 parts:
   charm:
-    plugin: dump
+    plugin: reactive
+    reactive-charm-build-arguments:
+      - --binary-wheels-from-source
+      - --use-lock-file-branches
+    build-packages:
+      - tox
+      - git
+      - python3-dev
+      - libffi-dev
+      - libssl-dev
+      - libxml2-dev
+      - libxslt1-dev
+      - rustc
+      - cargo
+      - pkg-config
     source: .
-    prime:
-      - actions/*
-      - charmhelpers/*
-      - files/*
-      - hooks/*
-      - lib/*
-      - templates/*
-      - actions.yaml
-      - config.yaml
-      - copyright
-      - hardening.yaml
-      - icon.svg
-      - LICENSE
-      - Makefile
-      - metadata.yaml
-      - README.md
-
-bases:
-  - build-on:
-      - name: ubuntu
-        channel: "20.04"
-        architectures:
-          - amd64
-    run-on:
-      - name: ubuntu
-        channel: "20.04"
-        architectures: [amd64, s390x, ppc64el, arm64]
-      - name: ubuntu
-        channel: "22.04"
-        architectures: [amd64, s390x, ppc64el, arm64]
+    build-snaps:
+      - charm/3.x/stable
+    build-environment:
+      - CHARM_INTERFACES_DIR: $CRAFT_PROJECT_DIR/interfaces/
+      - CHARM_LAYERS_DIR: $CRAFT_PROJECT_DIR/layers/
+platforms:
+  ubuntu@20.04:amd64:
+  ubuntu@20.04:arm64:
+  ubuntu@20.04:ppc64el:
+  ubuntu@20.04:s390x:
+  ubuntu@22.04:amd64:
+  ubuntu@22.04:arm64:
+  ubuntu@22.04:ppc64el:
+  ubuntu@22.04:s390x:

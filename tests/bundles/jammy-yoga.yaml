@@ -194,7 +194,7 @@ applications:
     channel: yoga/edge
 
   nova-compute:
-    charm: ../../nova-compute.charm
+    charm: ../../nova-compute_ubuntu@22.04-amd64.charm
     num_units: 1
     storage:
       ephemeral-device: '40G'
