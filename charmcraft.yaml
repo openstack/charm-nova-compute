@@ -2,27 +2,25 @@ type: charm
 
 parts:
   charm:
-    plugin: reactive
-    reactive-charm-build-arguments:
-      - --binary-wheels-from-source
-      - --use-lock-file-branches
-    build-packages:
-      - tox
-      - git
-      - python3-dev
-      - libffi-dev
-      - libssl-dev
-      - libxml2-dev
-      - libxslt1-dev
-      - rustc
-      - cargo
-      - pkg-config
+    plugin: dump
     source: .
-    build-snaps:
-      - charm/3.x/stable
-    build-environment:
-      - CHARM_INTERFACES_DIR: $CRAFT_PROJECT_DIR/interfaces/
-      - CHARM_LAYERS_DIR: $CRAFT_PROJECT_DIR/layers/
+    prime:
+      - actions/*
+      - charmhelpers/*
+      - files/*
+      - hooks/*
+      - lib/*
+      - templates/*
+      - actions.yaml
+      - config.yaml
+      - copyright
+      - hardening.yaml
+      - icon.svg
+      - LICENSE
+      - Makefile
+      - metadata.yaml
+      - README.md
+
 platforms:
   ubuntu@22.04:amd64:
   ubuntu@22.04:arm64:
