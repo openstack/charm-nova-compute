@@ -1,0 +1,4 @@
+{% if use_internal_endpoints -%}
+[barbican]
+barbican_endpoint_type = internal
+{% endif -%}
