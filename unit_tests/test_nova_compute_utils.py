@@ -688,6 +688,19 @@ class NovaComputeUtilsTests(CharmTestCase):
         rendered_config.read_string(content)
         return rendered_config
 
+    def test_nova_conf_template_release_selection(self):
+        yoga_renderer = os_templating.OSConfigRenderer(
+            templates_dir=utils.TEMPLATES, openstack_release='yoga')
+        zed_renderer = os_templating.OSConfigRenderer(
+            templates_dir=utils.TEMPLATES, openstack_release='caracal')
+
+        self.assertIn(
+            'templates/yoga/nova.conf',
+            yoga_renderer._get_template('nova.conf').filename)
+        self.assertIn(
+            'templates/zed/nova.conf',
+            zed_renderer._get_template('nova.conf').filename)
+
     @patch.object(compute_context, 'config')
     @patch.object(compute_context, 'relation_ids')
     @patch.object(compute_context, 'os_release')

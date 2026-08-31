@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import platform
 
 from unittest.mock import patch
@@ -964,6 +965,111 @@ class NovaComputeContextTests(CharmTestCase):
              'default_ephemeral_format': 'ext4',
              'cpu_shared_set': "4-12,^8,15",
              'cpu_dedicated_set': "0-3,^10,33"}, libvirt())
+
+    def test_pci_device_specs(self):
+        self.os_release.return_value = 'caracal'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+        self.test_config.set('pci-device-spec', json.dumps([
+            {'vendor_id': '10de', 'product_id': '3182',
+             'address': '0000:1a:00.0',
+             'resource_class': 'CUSTOM_B300_SINGLE'},
+            {'vendor_id': '10de', 'product_id': '3182',
+             'address': '0000:db:00.0',
+             'resource_class': 'CUSTOM_B300_SINGLE'},
+        ]))
+
+        ctxt = context.NovaComputeLibvirtContext()()
+
+        self.assertEqual(2, len(ctxt['pci_device_specs']))
+        self.assertEqual(
+            'CUSTOM_B300_SINGLE',
+            json.loads(ctxt['pci_device_specs'][0])['resource_class'])
+
+    def test_pci_device_spec_precedes_legacy_option(self):
+        self.os_release.return_value = 'caracal'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+        self.test_config.set(
+            'pci-device-spec', '{"address":"0000:1a:00.0"}')
+        self.test_config.set(
+            'pci-passthrough-whitelist', '{"address":"0000:db:00.0"}')
+
+        ctxt = context.NovaComputeLibvirtContext()()
+
+        self.assertEqual(
+            ['{"address": "0000:1a:00.0"}'], ctxt['pci_device_specs'])
+        self.assertNotIn('pci_passthrough_whitelist', ctxt)
+
+    def test_pci_device_spec_invalid(self):
+        self.os_release.return_value = 'caracal'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+        self.test_config.set('pci-device-spec', 'not-json')
+
+        with self.assertRaises(ValueError):
+            context.NovaComputeLibvirtContext()()
+
+    def test_legacy_pci_passthrough_whitelist_unchanged(self):
+        self.os_release.return_value = 'caracal'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+        self.test_config.set(
+            'pci-passthrough-whitelist',
+            '{"resource_class":"CUSTOM_B300_SINGLE"}')
+
+        ctxt = context.NovaComputeLibvirtContext()()
+
+        self.assertEqual(
+            '{"resource_class":"CUSTOM_B300_SINGLE"}',
+            ctxt['pci_passthrough_whitelist'])
+        self.assertNotIn('pci_device_specs', ctxt)
+
+    def test_pci_device_spec_ignored_before_zed(self):
+        self.os_release.return_value = 'yoga'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+        self.test_config.set(
+            'pci-device-spec', '{"address":"0000:1a:00.0"}')
+
+        ctxt = context.NovaComputeLibvirtContext()()
+
+        self.assertNotIn('pci_device_specs', ctxt)
+
+    def test_legacy_option_used_before_zed_when_both_are_set(self):
+        self.os_release.return_value = 'yoga'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+        self.test_config.set(
+            'pci-device-spec', '{"address":"0000:1a:00.0"}')
+        self.test_config.set(
+            'pci-passthrough-whitelist', '{"address":"0000:db:00.0"}')
+
+        ctxt = context.NovaComputeLibvirtContext()()
+
+        self.assertEqual(
+            '{"address":"0000:db:00.0"}',
+            ctxt['pci_passthrough_whitelist'])
+
+    def test_pci_report_in_placement(self):
+        self.os_release.return_value = 'zed'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+        self.test_config.set('pci-report-in-placement', True)
+
+        ctxt = context.NovaComputeLibvirtContext()()
+
+        self.assertTrue(ctxt['pci_report_in_placement'])
+
+    def test_pci_report_in_placement_ignored_before_zed(self):
+        self.os_release.return_value = 'yoga'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+        self.test_config.set('pci-report-in-placement', True)
+
+        ctxt = context.NovaComputeLibvirtContext()()
+
+        self.assertNotIn('pci_report_in_placement', ctxt)
+
+    def test_pci_report_in_placement_default(self):
+        self.os_release.return_value = 'caracal'
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'jammy'}
+
+        ctxt = context.NovaComputeLibvirtContext()()
+
+        self.assertNotIn('pci_report_in_placement', ctxt)
 
     def test_vcpu_pin_set(self):
         self.kv.return_value = FakeUnitdata(**{'host_uuid': self.host_uuid})
