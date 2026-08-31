@@ -313,9 +313,24 @@ class NovaComputeLibvirtContext(context.OSContextGenerator):
             ctxt['reserved_huge_pages'] = (
                 [o.strip() for o in config('reserved-huge-pages').split(";")])
 
-        if config('pci-passthrough-whitelist'):
-            ctxt['pci_passthrough_whitelist'] = \
-                config('pci-passthrough-whitelist')
+        if (cmp_os_release >= 'zed' and config('pci-device-spec')):
+            raw_device_spec = config('pci-device-spec')
+            device_specs = json.loads(raw_device_spec)
+            if isinstance(device_specs, dict):
+                device_specs = [device_specs]
+            elif (not isinstance(device_specs, list) or
+                  not all(isinstance(x, dict) for x in device_specs)):
+                raise ValueError('PCI device specs must be JSON objects')
+            ctxt['pci_device_specs'] = [
+                json.dumps(x, sort_keys=True) for x in device_specs]
+        elif config('pci-passthrough-whitelist'):
+            ctxt['pci_passthrough_whitelist'] = config(
+                'pci-passthrough-whitelist')
+
+        # Require explicit opt-in because Nova cannot disable this afterwards.
+        if (cmp_os_release >= 'zed' and
+                config('pci-report-in-placement')):
+            ctxt['pci_report_in_placement'] = True
 
         if config('pci-alias'):
             aliases = json.loads(config('pci-alias'))

@@ -259,8 +259,11 @@ options:
     type: string
     default:
     description: |
-      Sets the pci_passthrough_whitelist option in nova.conf which allows PCI
-      passthrough of specific devices to VMs.
+      DEPRECATED: use pci-device-spec on Zed and later. This option remains
+      supported for existing deployments and continues to render unchanged as
+      [pci] passthrough_whitelist.
+      .
+      Allows PCI passthrough of specific devices to VMs.
       .
       Example applications: GPU processing, SR-IOV networking, etc.
       .
@@ -268,12 +271,41 @@ options:
       deployed to. This can be accomplished by setting kernel parameters on
       capable machines in MAAS, tagging them and using these tags as
       constraints in the model.
+  pci-device-spec:
+    type: string
+    default:
+    description: |
+      Sets [pci] device_spec in nova.conf. The value must be a JSON object or
+      a JSON list of objects describing PCI devices available to guests. A
+      list is rendered as repeated device_spec entries. This option takes
+      precedence over pci-passthrough-whitelist when both are set. This option
+      is supported from Zed and is ignored on earlier releases.
+      .
+      device_spec supports address, resource_class, traits, and other tags.
+      See the Nova PCI passthrough documentation for the complete syntax.
+  pci-report-in-placement:
+    type: boolean
+    default: false
+    description: |
+      Enable reporting PCI resource inventories to Placement. This maps to
+      [pci] report_in_placement in nova.conf and is supported from Zed.
+      Devices matching pci-device-spec (or the legacy
+      pci-passthrough-whitelist option) are reported as child resource
+      providers, including custom resource classes.
+      .
+      This option defaults to false, so existing deployments remain disabled
+      during charm and OpenStack upgrades unless an operator explicitly
+      enables it.
+      .
+      Once enabled on a compute host, Nova does not support disabling it.
+      Enable this on all relevant compute hosts and verify their PCI resource
+      providers before enabling pci-in-placement on nova-cloud-controller.
   pci-alias:
     type: string
     default:
     description: |
-      The pci-passthrough-whitelist option of nova-compute charm is used for
-      specifying which PCI devices are allowed passthrough. pci-alias is more
+      The pci-device-spec option of nova-compute charm is used for specifying
+      which PCI devices are allowed passthrough. pci-alias is more
       a convenience that can be used in conjunction with Nova flavor properties
       to automatically assign required PCI devices to new instances. You could,
       for example, have a GPU flavor or a SR-IOV flavor:
@@ -286,8 +318,9 @@ options:
       .
         pci-alias='[{...},{...}]'
       .
-      For more information about the syntax of pci_alias, refer to
-      https://docs.openstack.org/ocata/config-reference/compute/config-options.html
+      Aliases may select devices by resource_class when PCI tracking in
+      Placement is enabled. For more information, refer to the Nova PCI
+      passthrough documentation.
   reserved-host-memory:
     type: int
     default: 512
@@ -996,4 +1029,3 @@ options:
       can be a problem when resume-guests-state-on-host-boot is True. We
       use a custom default here and it can be set higher if not enough for
       nodes with very large numbers of vms.
-

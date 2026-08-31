@@ -32,6 +32,25 @@ Allows the resizing of VMs.
 Selects the TCP authentication scheme to use for live migration. The only
 accepted value is 'ssh'.
 
+#### PCI tracking in Placement
+
+From the Zed release, `pci-report-in-placement` reports devices matching
+`pci-device-spec` to Placement. Device specifications can include custom
+`resource_class` and `traits` values. The deprecated
+`pci-passthrough-whitelist` option remains supported and continues to render
+as `[pci] passthrough_whitelist` without modifying its value.
+
+Roll out Placement-backed PCI scheduling in this order:
+
+1. Configure `pci-device-spec` on nova-compute.
+2. Enable `pci-report-in-placement` on every relevant compute application.
+3. Allow nova-compute to restart and reconcile its resources.
+4. Verify that PCI child resource providers and inventories exist in Placement.
+5. Enable `pci-in-placement` on nova-cloud-controller.
+
+Nova does not support disabling `pci-report-in-placement` after it has been
+enabled on a compute host.
+
 #### `customize-failure-domain`
 
 When MAAS is the backing cloud and this option is set to 'true' then all
