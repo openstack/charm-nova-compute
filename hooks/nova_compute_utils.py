@@ -503,9 +503,13 @@ def determine_packages_arch():
     '''Generate list of architecture-specific packages'''
     packages = []
     distro_codename = lsb_release()['DISTRIB_CODENAME'].lower()
-    if (platform.machine() == 'aarch64' and
-            CompareHostReleases(distro_codename) >= 'wily'):
-        packages.extend(['qemu-efi']),  # AArch64 cloud images require UEFI fw
+    if platform.machine() == 'aarch64':
+        cmp_distro_codename = CompareHostReleases(distro_codename)
+        # AArch64 cloud images require UEFI firmware.
+        if cmp_distro_codename >= 'noble':
+            packages.append('qemu-efi-aarch64')
+        else:
+            packages.append('qemu-efi')
 
     return packages
 
