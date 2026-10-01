@@ -248,6 +248,18 @@ class NovaComputeUtilsTests(CharmTestCase):
         )
         self.assertTrue(ex.sort() == result.sort())
 
+    @patch('platform.machine')
+    def test_determine_packages_arch(self, machine):
+        for arch, release, expected in (
+                ('aarch64', 'jammy', ['qemu-efi']),
+                ('aarch64', 'noble', ['qemu-efi-aarch64']),
+                ('x86_64', 'jammy', []),
+                ('x86_64', 'noble', [])):
+            with self.subTest(arch=arch, release=release):
+                machine.return_value = arch
+                self.lsb_release.return_value = {'DISTRIB_CODENAME': release}
+                self.assertEqual(utils.determine_packages_arch(), expected)
+
     @patch.object(utils, 'get_subordinate_release_packages')
     @patch.object(utils, 'nova_metadata_requirement')
     @patch.object(utils, 'neutron_plugin')
