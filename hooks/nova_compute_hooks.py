@@ -79,7 +79,7 @@ from charmhelpers.contrib.openstack.utils import (
     get_source_and_pgp_key,
     openstack_upgrade_available,
     os_release,
-    pausable_restart_on_change as restart_on_change,
+    pausable_restart_on_change,
     series_upgrade_complete,
     series_upgrade_prepare,
 )
@@ -131,6 +131,8 @@ from nova_compute_utils import (
     remove_old_packages,
     MULTIPATH_PACKAGES,
     SWTPM_PACKAGES,
+    DBUS_SERVICE,
+    reload_dbus,
 )
 
 from charmhelpers.contrib.network.ip import (
@@ -164,6 +166,11 @@ hooks = Hooks()
 CONFIGS = register_configs()
 MIGRATION_AUTH_TYPES = ["ssh"]
 LIBVIRTD_PID = '/var/run/libvirtd.pid'
+
+
+restart_on_change = functools.partial(
+    pausable_restart_on_change,
+    restart_functions={DBUS_SERVICE: reload_dbus})
 
 
 @hooks.hook('install.real')

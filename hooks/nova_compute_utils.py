@@ -43,6 +43,7 @@ from charmhelpers.core.fstab import Fstab
 from charmhelpers.core.host import (
     mkdir,
     service_restart,
+    service_reload,
     lsb_release,
     rsync,
     CompareHostReleases,
@@ -83,6 +84,7 @@ from charmhelpers.contrib.openstack.utils import (
     resume_unit,
     os_application_version_set,
     CompareOpenStackReleases,
+    pausable_restart_on_change,
 )
 
 from charmhelpers.core.hugepage import hugepage_support
@@ -468,8 +470,17 @@ def services():
     # service. Attempting to start the ceilometer-agent-compute service first
     # will then fail. Thus we return the services here in a resume-friendly
     # order, i.e. the principal services first, then the subordinate ones.
-    return (list(set(chain(*restart_map().values()))) +
-            list(get_subordinate_services()))
+    # D-Bus is shared host infrastructure. Its configuration is reloaded,
+    # but its lifecycle must not follow the charm's managed services.
+    _services = (list(set(chain(*restart_map().values()))) +
+                 list(get_subordinate_services()))
+    return [service for service in _services if service != DBUS_SERVICE]
+
+
+def reload_dbus(service_name):
+    """Apply bus limits without disconnecting system bus clients."""
+    if not service_reload(service_name, restart_on_failure=False):
+        raise RuntimeError('Failed to reload {}'.format(service_name))
 
 
 def register_configs():
@@ -767,6 +778,9 @@ def import_authorized_keys(user='root', prefix=None):
                 rdata.get('{}authorized_keys_{}'.format(_prefix, index))))
 
 
+@pausable_restart_on_change(
+    {DBUS_CONF: [DBUS_SERVICE]},
+    restart_functions={DBUS_SERVICE: reload_dbus})
 def do_openstack_upgrade(configs):
     # NOTE(jamespage) horrible hack to make utils forget a cached value
     import charmhelpers.contrib.openstack.utils as utils
@@ -1080,11 +1094,6 @@ def services_to_pause_or_resume():
         # more details.
         _services = [service for service in services()
                      if service != libvirt_daemon()]
-
-    # We must not pause the dbus service
-    if DBUS_SERVICE in _services:
-        idx = _services.index(DBUS_SERVICE)
-        _services.pop(idx)
 
     return _services
 

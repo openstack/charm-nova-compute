@@ -23,6 +23,7 @@ import nova_compute_context as compute_context
 import nova_compute_utils as utils
 
 from unittest.mock import (
+    DEFAULT,
     patch,
     MagicMock,
     call
@@ -1483,6 +1484,60 @@ class NovaComputeUtilsTests(CharmTestCase):
         actual_service_list = utils.services_to_pause_or_resume()
         self.assertEqual(expected_service_set, set(actual_service_list))
         self.assertEqual(expected_last_service, actual_service_list[-1])
+
+    @patch.object(utils, 'restart_map', return_value={
+        utils.DBUS_CONF: ['dbus'], utils.NOVA_CONF: ['nova-compute']})
+    @patch.object(utils, 'get_subordinate_services',
+                  return_value=['ceilometer-agent-compute'])
+    def test_services_excludes_dbus(self, subordinate_services, restart_map):
+        self.assertEqual(['nova-compute', 'ceilometer-agent-compute'],
+                         utils.services())
+
+    def run_openstack_upgrade(self, changed=True, paused=False,
+                              reload_success=True):
+        configs = MagicMock()
+        with patch.multiple(
+                utils, apt_upgrade=DEFAULT,
+                configure_installation_source=DEFAULT,
+                get_os_codename_install_source=DEFAULT,
+                reset_os_release=DEFAULT, determine_packages=DEFAULT,
+                remove_old_packages=DEFAULT):
+            with patch.object(utils, 'restart_map', return_value={
+                    utils.DBUS_CONF: ['dbus'],
+                    utils.NOVA_CONF: ['nova-compute']}), \
+                    patch.object(utils, 'get_subordinate_services',
+                                 return_value=[]), \
+                    patch.object(utils, 'is_unit_paused_set',
+                                 return_value=paused), \
+                    patch.object(os_utils, 'is_unit_paused_set',
+                                 return_value=paused), \
+                    patch('charmhelpers.core.host.path_hash',
+                          side_effect=['old', 'new' if changed else 'old']), \
+                    patch.object(utils, 'service_reload',
+                                 return_value=reload_success) as reload:
+                utils.do_openstack_upgrade(configs)
+        configs.write_all.assert_called_once_with()
+        return reload
+
+    def test_openstack_upgrade_reloads_dbus_without_restarting_it(self):
+        reload = self.run_openstack_upgrade()
+        reload.assert_called_once_with('dbus', restart_on_failure=False)
+        self.service_restart.assert_called_once_with('nova-compute')
+
+    def test_openstack_upgrade_unchanged_dbus_config(self):
+        reload = self.run_openstack_upgrade(changed=False)
+        reload.assert_not_called()
+        self.service_restart.assert_called_once_with('nova-compute')
+
+    def test_openstack_upgrade_paused_does_not_reload_or_restart(self):
+        reload = self.run_openstack_upgrade(paused=True)
+        reload.assert_not_called()
+        self.service_restart.assert_not_called()
+
+    def test_openstack_upgrade_reload_failure_does_not_restart_dbus(self):
+        with self.assertRaisesRegex(RuntimeError, 'Failed to reload dbus'):
+            self.run_openstack_upgrade(reload_success=False)
+        self.service_restart.assert_called_once_with('nova-compute')
 
     @patch.object(utils, 'render')
     def test_install_mount_override(self, render):

@@ -15,6 +15,10 @@
 import copy
 import importlib
 import json
+import nova_compute_utils as utils
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import TestCase
 
 from unittest.mock import (
     ANY,
@@ -108,6 +112,55 @@ TO_PATCH = [
     'services',
     'send_application_name',
 ]
+
+
+class TestDBusReload(TestCase):
+    def run_config_change(self, changed=True, paused=False,
+                          service_name='dbus'):
+        with TemporaryDirectory() as directory:
+            config_file = Path(directory) / 'dbus.conf'
+            config_file.write_text('old limit')
+
+            @hooks.restart_on_change({str(config_file): [service_name]})
+            def write_config():
+                if changed:
+                    config_file.write_text('new limit')
+
+            with patch('charmhelpers.contrib.openstack.utils.'
+                       'is_unit_paused_set', return_value=paused):
+                write_config()
+
+    @patch('charmhelpers.core.host.service')
+    @patch.object(utils, 'service_reload', return_value=True)
+    def test_changed_config_reloads_dbus(self, reload, service):
+        self.run_config_change()
+        reload.assert_called_once_with('dbus', restart_on_failure=False)
+        service.assert_not_called()
+
+    @patch('charmhelpers.core.host.service')
+    @patch.object(utils, 'service_reload', return_value=False)
+    def test_reload_failure_does_not_restart(self, reload, service):
+        with self.assertRaisesRegex(RuntimeError, 'Failed to reload dbus'):
+            self.run_config_change()
+        reload.assert_called_once_with('dbus', restart_on_failure=False)
+        service.assert_not_called()
+
+    @patch.object(utils, 'service_reload')
+    def test_unchanged_config_does_not_reload(self, reload):
+        self.run_config_change(changed=False)
+        reload.assert_not_called()
+
+    @patch.object(utils, 'service_reload')
+    def test_paused_unit_does_not_reload(self, reload):
+        self.run_config_change(paused=True)
+        reload.assert_not_called()
+
+    @patch('charmhelpers.core.host.service')
+    @patch.object(utils, 'service_reload')
+    def test_other_services_still_restart(self, reload, service):
+        self.run_config_change(service_name='nova-compute')
+        service.assert_called_once_with('restart', 'nova-compute')
+        reload.assert_not_called()
 
 
 class TestNrpeConfig(CharmTestCase):
@@ -1471,6 +1524,18 @@ class NovaComputeRelationsTests(CharmTestCase):
         self.services.return_value = ['nova-compute']
         hooks.upgrade_charm()
         self.remove_old_packages.assert_called_once_with()
+        self.service_restart.assert_called_once_with('nova-compute')
+
+    @patch.object(hooks.grp, 'getgrnam')
+    @patch.object(utils, 'get_subordinate_services', return_value=[])
+    @patch.object(utils, 'restart_map', return_value={
+        utils.DBUS_CONF: ['dbus'], utils.NOVA_CONF: ['nova-compute']})
+    def test_upgrade_charm_purge_excludes_dbus(
+            self, restart_map, subordinate_services, getgrnam):
+        getgrnam.return_value.gr_gid = None
+        self.remove_old_packages.return_value = True
+        with patch.object(hooks, 'services', wraps=utils.services):
+            hooks.upgrade_charm()
         self.service_restart.assert_called_once_with('nova-compute')
 
     @patch.object(hooks, 'is_unit_paused_set')
