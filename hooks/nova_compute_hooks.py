@@ -479,6 +479,9 @@ def ironic_api_changed():
 @hooks.hook('ceph-relation-joined')
 @restart_on_change(restart_map())
 def ceph_joined():
+    # install old credentials first for backwards compatibility
+    send_application_name()
+
     pkgs = filter_installed_packages(['ceph-common'])
     if pkgs:
         status_set('maintenance', 'Installing ceph-common package')
@@ -486,8 +489,6 @@ def ceph_joined():
         # Bug 1427660
         if not is_unit_paused_set() and config('virt-type') in LIBVIRT_TYPES:
             service_restart(libvirt_daemon())
-    # install old credentials first for backwards compatibility
-    send_application_name()
 
 
 def get_ceph_request():
