@@ -63,6 +63,7 @@ class TestNovaComputeUpgradeActions(CharmTestCase):
     @patch('openstack_upgrade.nova_vgpu_joined')
     @patch('openstack_upgrade.nova_ceilometer_joined')
     @patch('openstack_upgrade.neutron_plugin_joined')
+    @patch('openstack_upgrade.neutron_plugin_remote_joined')
     @patch('openstack_upgrade.relation_ids')
     @patch('charmhelpers.contrib.openstack.utils.config')
     @patch('charmhelpers.contrib.openstack.utils.action_set')
@@ -70,6 +71,7 @@ class TestNovaComputeUpgradeActions(CharmTestCase):
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     def test_openstack_upgrade_true(self, log, upgrade_avail,
                                     action_set, config, relation_ids,
+                                    neutron_plugin_remote_joined,
                                     neutron_plugin_joined,
                                     nova_ceilometer_joined, nova_vgpu_joined,
                                     *args):
@@ -79,6 +81,7 @@ class TestNovaComputeUpgradeActions(CharmTestCase):
 
         def fake_relation_ids(thing):
             return {'neutron-plugin': ['1'],
+                    'neutron-plugin-remote': ['4'],
                     'nova-ceilometer': ['2'],
                     'nova-vgpu': ['3']}[thing]
 
@@ -89,6 +92,8 @@ class TestNovaComputeUpgradeActions(CharmTestCase):
         self.assertTrue(self.do_openstack_upgrade.called)
         self.assertTrue(self.config_changed.called)
         neutron_plugin_joined.assert_called_once_with("1", remote_restart=True)
+        neutron_plugin_remote_joined.assert_called_once_with(
+            "4", remote_restart=True)
         nova_ceilometer_joined.assert_called_once_with(
             "2", remote_restart=True)
         nova_vgpu_joined.assert_called_once_with(
