@@ -38,9 +38,12 @@ from charmhelpers.core.strutils import (
 from charmhelpers.fetch import apt_install, filter_installed_packages
 from charmhelpers.core.hookenv import (
     config,
+    departing_unit,
+    hook_name,
     local_unit,
     log,
     relation_get,
+    relation_id,
     relation_ids,
     related_units,
     service_name,
@@ -161,7 +164,8 @@ def _neutron_url(rid, unit):
             relation_get('quantum_url', rid=rid, unit=unit))
 
 
-def nova_metadata_requirement():
+def local_metadata_requirement():
+    """Return the existing colocated provider's metadata requirements."""
     enable = False
     secret = None
     for rid in relation_ids('neutron-plugin'):
@@ -172,6 +176,55 @@ def nova_metadata_requirement():
                 enable = True
             if bool_from_string(rdata.get('enable-metadata', 'False')):
                 enable = True
+    return enable, secret
+
+
+def remote_metadata_requirement():
+    """Return the remote secret and its workload status.
+
+    Nova supports one proxy secret. Reject conflicting providers rather than
+    replacing a local provider's credentials or choosing an arbitrary DPU.
+    """
+    endpoint = 'neutron-plugin-remote'
+    rids = relation_ids(endpoint)
+    if hook_name() == endpoint + '-relation-broken':
+        rids = [rid for rid in rids if rid != relation_id()]
+    if not rids:
+        return None, None, None
+
+    secrets = set()
+    ready = True
+    for rid in rids:
+        units = related_units(rid)
+        if (hook_name() == endpoint + '-relation-departed' and
+                rid == relation_id()):
+            units = [unit for unit in units if unit != departing_unit()]
+        if not units:
+            ready = False
+        for unit in units:
+            rdata = relation_get(rid=rid, unit=unit)
+            secret = rdata.get('metadata-shared-secret')
+            if secret and secret.strip():
+                secrets.add(secret)
+            else:
+                ready = False
+    local_enabled, local_secret = local_metadata_requirement()
+    if len(secrets) > 1 or (local_enabled and
+                            secrets and secrets != {local_secret}):
+        return (None, 'blocked',
+                'Metadata providers must use the same shared secret')
+    secret = next(iter(secrets), None)
+    if not ready:
+        return (secret, 'waiting',
+                'neutron-plugin-remote awaiting metadata-shared-secret')
+    return secret, None, None
+
+
+def nova_metadata_requirement():
+    enable, secret = local_metadata_requirement()
+    remote_secret, _, _ = remote_metadata_requirement()
+    if remote_secret:
+        enable, secret = True, remote_secret
     return enable, secret
 
 

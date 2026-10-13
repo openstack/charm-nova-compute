@@ -84,6 +84,17 @@ Dictates the Ceph storage pool type. See sections [Ceph pool
 type][anchor-ceph-pool-type] and [RBD Nova images][anchor-rbd-nova-images] for
 more information.
 
+## Remote chassis metadata
+
+The optional `neutron-plugin-remote` relation enables metadata for remote OVN
+chassis:
+
+    juju integrate ovn-dedicated-chassis:nova-compute nova-compute:neutron-plugin-remote
+
+All metadata providers connected to a compute unit must share one nonempty
+secret. Remote chassis need a protected network path to the compute metadata API
+on TCP port 8775; the relation does not configure TLS or network connectivity.
+
 ## Ceph pool type
 
 Ceph storage pools can be configured to ensure data resiliency either through

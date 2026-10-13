@@ -1153,6 +1153,20 @@ class NovaComputeUtilsTests(CharmTestCase):
                 utils.VERSION_PACKAGE
             )
 
+    @patch.object(utils, 'remote_metadata_requirement')
+    def test_remote_metadata_status(self, remote):
+        self.relation_ids.return_value = []
+        for state, message in (
+                (None, None),
+                ('waiting', 'awaiting secret'),
+                ('blocked', 'conflicting secrets')):
+            with self.subTest(state=state):
+                remote.return_value = ('secret', state, message)
+                expected = (state, message) if state else ('unknown', '')
+                self.assertEqual(
+                    expected, utils.check_optional_config_and_relations(None))
+                remote.assert_called_with()
+
     @patch.object(utils, 'REQUIRED_INTERFACES')
     @patch.object(utils, 'services')
     @patch.object(utils, 'make_assess_status_func')

@@ -57,6 +57,25 @@ class TestNovaComputeUpgradeActions(CharmTestCase):
         super(TestNovaComputeUpgradeActions, self).setUp(package_upgrade,
                                                          TO_PATCH)
 
+    @patch('package_upgrade.do_action_package_upgrade', return_value=True)
+    @patch('package_upgrade.relation_ids')
+    @patch('package_upgrade.neutron_plugin_remote_joined')
+    @patch('package_upgrade.neutron_plugin_joined')
+    @patch('package_upgrade.nova_ceilometer_joined')
+    @patch('package_upgrade.nova_vgpu_joined')
+    def test_package_upgrade_notifies_remote_chassis(
+            self, vgpu, ceilometer, local, remote, relation_ids,
+            do_action_package_upgrade, *args):
+        relation_ids.side_effect = lambda endpoint: {
+            'neutron-plugin': ['local:1'],
+            'neutron-plugin-remote': ['remote:2'],
+            'nova-ceilometer': [],
+            'nova-vgpu': [],
+        }[endpoint]
+        package_upgrade.package_upgrade()
+        local.assert_called_once_with('local:1', remote_restart=True)
+        remote.assert_called_once_with('remote:2', remote_restart=True)
+
     @patch('package_upgrade.relation_ids')
     @patch('charmhelpers.contrib.openstack.utils.action_set')
     @patch('charmhelpers.contrib.openstack.utils.openstack_upgrade_available')

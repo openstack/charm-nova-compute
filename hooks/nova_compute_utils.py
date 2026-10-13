@@ -91,6 +91,7 @@ from charmhelpers.core.hugepage import hugepage_support
 
 from nova_compute_context import (
     nova_metadata_requirement,
+    remote_metadata_requirement,
     CloudComputeContext,
     CloudComputeVendorJSONContext,
     LxdContext,
@@ -1016,6 +1017,10 @@ def check_optional_config_and_relations(configs):
     :param configs: an OSConfigRender() instance.
     :return 2-tuple: (string, string) = (status, message)
     """
+    _, state, message = remote_metadata_requirement()
+    if state:
+        return state, message
+
     if relation_ids('ceph'):
         # Check that provided Ceph BlueStoe configuration is valid.
         try:

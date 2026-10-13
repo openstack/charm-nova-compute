@@ -44,6 +44,9 @@ requires:
   neutron-plugin:
     interface: neutron-plugin
     scope: container
+  neutron-plugin-remote:
+    interface: neutron-plugin-remote
+    scope: global
   ephemeral-backend:
     interface: ephemeral-backend
     scope: container

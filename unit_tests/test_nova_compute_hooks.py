@@ -1226,6 +1226,35 @@ class NovaComputeRelationsTests(CharmTestCase):
             **expect_rel_settings
         )
 
+    @patch.object(hooks, 'update_metadata_service')
+    @patch('charmhelpers.core.host._post_restart_on_change_helper')
+    def test_remote_metadata_events_restart_once(self, post_restart, update):
+        for handler in (hooks.neutron_plugin_remote_changed,
+                        hooks.neutron_plugin_remote_departed):
+            with self.subTest(handler=handler.__name__):
+                update.reset_mock()
+                post_restart.reset_mock()
+                handler()
+                update.assert_called_once_with()
+                post_restart.assert_called_once()
+
+    @patch.object(hooks, 'update_metadata_service')
+    @patch.object(hooks, 'service_restart_handler')
+    @patch.object(hooks, 'trigger_ceilometer_service_restart')
+    @patch.object(hooks, 'trigger_nova_vgpu_service_restart')
+    def test_remote_metadata_does_not_restart_subordinates(
+            self, vgpu, ceilometer, service_restart, update):
+        hooks.neutron_plugin_remote_changed()
+        update.assert_called_once_with()
+        service_restart.assert_not_called()
+        ceilometer.assert_not_called()
+        vgpu.assert_not_called()
+
+    @patch.object(hooks, 'neutron_plugin_joined')
+    def test_remote_metadata_joined(self, joined):
+        hooks.neutron_plugin_remote_joined('remote:1', remote_restart=True)
+        joined.assert_called_once_with('remote:1', True)
+
     @patch('nova_compute_context.config')
     @patch('os.environ.get')
     @patch.object(hooks, 'get_hugepage_number')
