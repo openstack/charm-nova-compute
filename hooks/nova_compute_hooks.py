@@ -33,6 +33,7 @@ from charmhelpers.core.kernel import modprobe
 from charmhelpers.core.hookenv import (
     Hooks,
     config,
+    hook_name,
     is_relation_made,
     local_unit,
     log,
@@ -41,6 +42,7 @@ from charmhelpers.core.hookenv import (
     WARNING,
     ERROR,
     relation_ids,
+    relation_id,
     remote_service_name,
     related_units,
     relation_get,
@@ -794,6 +796,8 @@ def upgrade_charm():
             .format(asok_path))
         shutil.chown(asok_path, group='kvm')
 
+    publish_remote_metadata_credentials()
+
 
 @hooks.hook('nova-ceilometer-relation-joined')
 def nova_ceilometer_joined(relid=None, remote_restart=False):
@@ -858,6 +862,7 @@ def neutron_plugin_joined(relid=None, remote_restart=False):
 @hooks.hook('neutron-plugin-remote-relation-joined')
 def neutron_plugin_remote_joined(relid=None, remote_restart=False):
     neutron_plugin_joined(relid, remote_restart)
+    publish_remote_metadata_credentials(relid)
 
 
 @hooks.hook('neutron-plugin-relation-changed')
@@ -879,6 +884,40 @@ def update_metadata_service():
     else:
         apt_purge('nova-api-metadata', fatal=True)
     CONFIGS.write(NOVA_CONF)
+    publish_remote_metadata_credentials()
+
+
+def publish_remote_metadata_credentials(relid=None):
+    """Forward local credentials to one or all remote chassis relations.
+
+    Every compute publishes its own address/secret pair. Remote chassis must
+    select a complete pair from one unit, since local proxies may use different
+    secrets. Clear previously advertised credentials if local signed metadata
+    is no longer configured. Pausing a service does not change its credentials.
+
+    :param relid: Relation ID to update, or None for all remote relations.
+    """
+    rids = ([relid] if relid is not None else
+            relation_ids('neutron-plugin-remote'))
+    if hook_name() == 'neutron-plugin-remote-relation-broken':
+        rids = [rid for rid in rids if rid != relation_id()]
+    if not rids:
+        return
+    enabled, secret = nova_metadata_requirement()
+    if not enabled or not secret or not secret.strip():
+        secret = None
+    settings = {
+        'private-address': get_relation_ip('neutron-plugin-remote'),
+        'metadata-shared-secret': secret,
+    }
+    for rid in rids:
+        relation_set(relation_id=rid, relation_settings=settings)
+
+
+@hooks.hook('neutron-plugin-relation-departed')
+@restart_on_change(restart_map())
+def neutron_plugin_departed():
+    update_metadata_service()
 
 
 @hooks.hook('neutron-plugin-remote-relation-changed')

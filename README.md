@@ -91,9 +91,28 @@ chassis:
 
     juju integrate ovn-dedicated-chassis:nova-compute nova-compute:neutron-plugin-remote
 
-All metadata providers connected to a compute unit must share one nonempty
-secret. Remote chassis need a protected network path to the compute metadata API
-on TCP port 8775; the relation does not configure TLS or network connectivity.
+Keep the existing container-scoped `neutron-plugin` relation to `ovn-chassis`.
+Each compute unit forwards its local metadata API address and existing shared
+secret to remote chassis as `private-address` and `metadata-shared-secret` in
+unit relation data. Adding a DPU does not replace the local provider's secret.
+Remote chassis need a protected network path to the compute metadata API on TCP
+port 8775; the relation does not configure TLS or network connectivity.
+
+Different compute units can retain different local secrets. The DPU must select
+an address and secret from the same compute unit in its Nova cell. It waits for
+a complete advertisement if local signed metadata has not yet been configured,
+and selects another complete pair if its chosen unit withdraws credentials or
+leaves the relation. Nova refreshes the advertisement from remote relation
+joins, metadata configuration updates, and charm upgrades. Configuration
+changes and package/OpenStack upgrade actions also refresh remote relations.
+Pause/resume changes the service lifecycle, not its configured credentials.
+
+The remote relation does not enable or configure metadata independently of a
+local provider. Without a local provider, the remote relation waits for signed
+metadata credentials; it does not generate a separate secret. Incoming secrets
+left by older DPU charm revisions are ignored. Upgrade the DPU charm to consume
+Nova's advertisement and remove those obsolete outgoing values. This upgrade
+needs no manual secret reconciliation.
 
 ## Ceph pool type
 

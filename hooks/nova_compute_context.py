@@ -169,7 +169,13 @@ def local_metadata_requirement():
     enable = False
     secret = None
     for rid in relation_ids('neutron-plugin'):
+        if (hook_name() == 'neutron-plugin-relation-broken' and
+                rid == relation_id()):
+            continue
         for unit in related_units(rid):
+            if (hook_name() == 'neutron-plugin-relation-departed' and
+                    rid == relation_id() and unit == departing_unit()):
+                continue
             rdata = relation_get(rid=rid, unit=unit)
             if 'metadata-shared-secret' in rdata:
                 secret = rdata['metadata-shared-secret']
@@ -180,10 +186,11 @@ def local_metadata_requirement():
 
 
 def remote_metadata_requirement():
-    """Return the remote secret and its workload status.
+    """Report whether local signed metadata is available to remote chassis.
 
-    Nova supports one proxy secret. Reject conflicting providers rather than
-    replacing a local provider's credentials or choosing an arbitrary DPU.
+    Remote chassis consume this unit's existing credentials. Their incoming
+    relation data must never change the local metadata API configuration,
+    including credentials left by earlier DPU charm revisions.
     """
     endpoint = 'neutron-plugin-remote'
     rids = relation_ids(endpoint)
@@ -192,40 +199,21 @@ def remote_metadata_requirement():
     if not rids:
         return None, None, None
 
-    secrets = set()
-    ready = True
-    for rid in rids:
-        units = related_units(rid)
-        if (hook_name() == endpoint + '-relation-departed' and
-                rid == relation_id()):
-            units = [unit for unit in units if unit != departing_unit()]
-        if not units:
-            ready = False
-        for unit in units:
-            rdata = relation_get(rid=rid, unit=unit)
-            secret = rdata.get('metadata-shared-secret')
-            if secret and secret.strip():
-                secrets.add(secret)
-            else:
-                ready = False
     local_enabled, local_secret = local_metadata_requirement()
-    if len(secrets) > 1 or (local_enabled and
-                            secrets and secrets != {local_secret}):
-        return (None, 'blocked',
-                'Metadata providers must use the same shared secret')
-    secret = next(iter(secrets), None)
-    if not ready:
-        return (secret, 'waiting',
-                'neutron-plugin-remote awaiting metadata-shared-secret')
-    return secret, None, None
+    if local_enabled and local_secret and local_secret.strip():
+        return local_secret, None, None
+    return (None, 'waiting',
+            'neutron-plugin-remote awaiting local metadata-shared-secret')
 
 
 def nova_metadata_requirement():
-    enable, secret = local_metadata_requirement()
-    remote_secret, _, _ = remote_metadata_requirement()
-    if remote_secret:
-        enable, secret = True, remote_secret
-    return enable, secret
+    """Keep the local provider authoritative for Nova's single proxy secret.
+
+    Remote chassis extend an existing local metadata deployment. They do not
+    enable a standalone metadata API or generate credentials without a local
+    provider.
+    """
+    return local_metadata_requirement()
 
 
 class LxdContext(context.OSContextGenerator):
