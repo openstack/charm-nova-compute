@@ -109,106 +109,95 @@ class RemoteMetadataTests(CharmTestCase):
         self.assertEqual((None, None, None),
                          context.remote_metadata_requirement())
 
-    def test_remote_secret_enables_signed_metadata(self):
-        self.add_remote()
-        self.assertEqual((True, 'shared'), context.nova_metadata_requirement())
-        self.assertEqual(('shared', None, None),
-                         context.remote_metadata_requirement())
-        self.assertEqual({'metadata_shared_secret': 'shared'},
-                         context.MetadataServiceContext()())
-
-    def test_all_dpus_can_use_one_secret(self):
-        self.add_remote()
-        self.add_remote('dpu/1')
-        self.assertEqual(('shared', None, None),
+    def test_dpu_added_after_local_provider_preserves_local_metadata(self):
+        self.relate('neutron-plugin', 'local/0',
+                    {'metadata-shared-secret': 'local'})
+        before = context.MetadataServiceContext()()
+        self.add_remote(secret=None)
+        self.assertEqual((True, 'local'), context.nova_metadata_requirement())
+        self.assertEqual(before, context.MetadataServiceContext()())
+        self.assertEqual(('local', None, None),
                          context.remote_metadata_requirement())
 
-    def test_remote_enable_flag_cannot_enable_unsigned_metadata(self):
-        self.relate('neutron-plugin-remote', 'dpu/0',
-                    {'enable-metadata': 'true'})
+    def test_old_dpu_secrets_cannot_conflict_with_local_provider(self):
+        self.relate('neutron-plugin', 'local/0',
+                    {'metadata-shared-secret': 'local'})
+        self.add_remote(secret='old-dpu-secret')
+        self.add_remote('dpu/1', 'another-old-secret')
+        self.assertEqual((True, 'local'), context.nova_metadata_requirement())
+        self.assertEqual(('local', None, None),
+                         context.remote_metadata_requirement())
+
+    def test_remote_only_provider_cannot_configure_metadata(self):
+        self.add_remote()
         self.assertEqual((False, None), context.nova_metadata_requirement())
+        self.assertEqual((None, 'waiting',
+                          'neutron-plugin-remote awaiting local '
+                          'metadata-shared-secret'),
+                         context.remote_metadata_requirement())
+
+    def test_local_provider_arriving_after_dpu_supplies_credentials(self):
+        self.add_remote(secret=None)
+        self.assertEqual('waiting', context.remote_metadata_requirement()[1])
+        self.relate('neutron-plugin', 'local/0',
+                    {'metadata-shared-secret': 'local'})
+        self.assertEqual(('local', None, None),
+                         context.remote_metadata_requirement())
+
+    def test_remote_relation_preserves_local_unsigned_mode(self):
+        self.relate('neutron-plugin', 'local/0', {'enable-metadata': 'true'})
+        self.add_remote()
+        self.assertEqual((True, None), context.nova_metadata_requirement())
         self.assertEqual('waiting', context.remote_metadata_requirement()[1])
 
-    def test_empty_remote_secret_waits(self):
+    def test_each_compute_retains_its_own_local_secret(self):
+        self.add_remote(secret=None)
+        self.relate('neutron-plugin', 'local/0',
+                    {'metadata-shared-secret': 'compute-0-secret'})
+        for local_secret in ('compute-0-secret', 'compute-1-secret'):
+            with self.subTest(secret=local_secret):
+                self.data['local/0']['metadata-shared-secret'] = local_secret
+                self.assertEqual((True, local_secret),
+                                 context.nova_metadata_requirement())
+                self.assertEqual((local_secret, None, None),
+                                 context.remote_metadata_requirement())
+
+    def test_empty_local_credentials_are_not_advertised(self):
+        self.add_remote(secret=None)
+        self.relate('neutron-plugin', 'local/0', {})
         for secret in (None, '', ' '):
             with self.subTest(secret=secret):
-                self.add_remote(secret=secret)
+                self.data['local/0']['metadata-shared-secret'] = secret
+                self.assertEqual('waiting',
+                                 context.remote_metadata_requirement()[1])
+
+    def test_departing_local_provider_withdraws_credentials(self):
+        self.add_remote(secret=None)
+        rid = self.relate('neutron-plugin', 'local/0',
+                          {'metadata-shared-secret': 'local'})
+        for hook in ('departed', 'broken'):
+            with self.subTest(hook=hook):
+                self.hook_name.return_value = 'neutron-plugin-relation-' + hook
+                self.relation_id.return_value = rid
+                self.departing_unit.return_value = 'local/0'
                 self.assertEqual((False, None),
                                  context.nova_metadata_requirement())
                 self.assertEqual('waiting',
                                  context.remote_metadata_requirement()[1])
-                self.relations.clear()
 
-    def test_relation_without_units_waits(self):
-        self.relations['neutron-plugin-remote:1'] = []
-        self.assertEqual('waiting', context.remote_metadata_requirement()[1])
-
-    def test_pending_follower_does_not_disable_ready_dpu(self):
-        self.add_remote()
-        self.add_remote('dpu/1', None)
-        self.assertEqual((True, 'shared'), context.nova_metadata_requirement())
-        self.assertEqual('waiting', context.remote_metadata_requirement()[1])
-
-    def test_different_remote_secrets_block_and_disable_metadata(self):
-        self.add_remote()
-        self.add_remote('dpu/1', 'different', 'neutron-plugin-remote:2')
-        self.assertEqual((False, None), context.nova_metadata_requirement())
-        self.assertEqual('blocked', context.remote_metadata_requirement()[1])
-
-    def test_local_secret_is_preserved_on_remote_conflict(self):
+    def test_remote_departure_and_removal_preserve_local_secret(self):
         self.relate('neutron-plugin', 'local/0',
                     {'metadata-shared-secret': 'local'})
-        self.add_remote()
+        rid = self.add_remote()
+        self.hook_name.return_value = 'neutron-plugin-remote-relation-departed'
+        self.relation_id.return_value = rid
+        self.departing_unit.return_value = 'dpu/0'
         self.assertEqual((True, 'local'), context.nova_metadata_requirement())
-        self.assertEqual('blocked',
-                         context.remote_metadata_requirement()[1])
-
-    def test_remote_secret_does_not_replace_local_unsigned_mode(self):
-        self.relate('neutron-plugin', 'local/0', {'enable-metadata': 'true'})
-        self.add_remote()
-        self.assertEqual((True, None), context.nova_metadata_requirement())
-        self.assertEqual('blocked', context.remote_metadata_requirement()[1])
-
-    def test_local_and_remote_can_share_secret(self):
-        self.relate('neutron-plugin', 'local/0',
-                    {'metadata-shared-secret': 'shared'})
-        self.add_remote()
-        self.assertEqual((True, 'shared'), context.nova_metadata_requirement())
-        self.assertEqual(('shared', None, None),
-                         context.remote_metadata_requirement())
-
-    def test_departing_unit_is_excluded(self):
-        rid = self.add_remote()
-        self.hook_name.return_value = 'neutron-plugin-remote-relation-departed'
-        self.relation_id.return_value = rid
-        self.departing_unit.return_value = 'dpu/0'
-        self.assertEqual((False, None), context.nova_metadata_requirement())
-        self.relation_get.assert_not_called()
-
-    def test_departure_keeps_remaining_provider(self):
-        rid = self.add_remote(secret='different')
-        self.add_remote('dpu/1')
-        self.hook_name.return_value = 'neutron-plugin-remote-relation-departed'
-        self.relation_id.return_value = rid
-        self.departing_unit.return_value = 'dpu/0'
-        self.assertEqual((True, 'shared'), context.nova_metadata_requirement())
-
-    def test_broken_relation_restores_local_secret(self):
-        self.relate('neutron-plugin', 'local/0',
-                    {'metadata-shared-secret': 'local'})
-        rid = self.add_remote()
         self.hook_name.return_value = 'neutron-plugin-remote-relation-broken'
         self.relation_id.return_value = rid
         self.assertEqual((True, 'local'), context.nova_metadata_requirement())
         self.assertEqual((None, None, None),
                          context.remote_metadata_requirement())
-
-    def test_broken_relation_keeps_other_remote_relation(self):
-        rid = self.add_remote(secret='different')
-        self.add_remote('dpu/1', rid='neutron-plugin-remote:2')
-        self.hook_name.return_value = 'neutron-plugin-remote-relation-broken'
-        self.relation_id.return_value = rid
-        self.assertEqual((True, 'shared'), context.nova_metadata_requirement())
 
 
 class LxdContextTests(CharmTestCase):

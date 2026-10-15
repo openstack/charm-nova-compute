@@ -86,6 +86,7 @@ TO_PATCH = [
     'do_openstack_upgrade',
     'public_ssh_key',
     'register_configs',
+    'publish_remote_metadata_credentials',
     'disable_shell',
     'enable_shell',
     'update_nrpe_config',
@@ -161,6 +162,100 @@ class TestDBusReload(TestCase):
         self.run_config_change(service_name='nova-compute')
         service.assert_called_once_with('restart', 'nova-compute')
         reload.assert_not_called()
+
+
+class TestRemoteMetadataPublication(CharmTestCase):
+
+    def setUp(self):
+        super().setUp(hooks, [
+            'relation_ids', 'relation_set', 'nova_metadata_requirement',
+            'get_relation_ip', 'hook_name', 'relation_id',
+            'is_unit_paused_set',
+        ])
+        self.relation_ids.return_value = ['remote:1', 'remote:2']
+        self.get_relation_ip.return_value = '192.0.2.10'
+        self.nova_metadata_requirement.return_value = (True, 'local-secret')
+        self.hook_name.return_value = 'neutron-plugin-relation-changed'
+        self.is_unit_paused_set.return_value = False
+
+    def test_forwards_local_credentials_to_all_dpus(self):
+        hooks.publish_remote_metadata_credentials()
+        self.get_relation_ip.assert_called_once_with('neutron-plugin-remote')
+        self.relation_set.assert_has_calls([
+            call(relation_id=rid, relation_settings={
+                'private-address': '192.0.2.10',
+                'metadata-shared-secret': 'local-secret'})
+            for rid in ('remote:1', 'remote:2')])
+
+    def test_withdraws_credentials_when_local_metadata_is_unavailable(self):
+        for requirement in ((False, None), (True, None),
+                            (True, ''), (True, ' ')):
+            with self.subTest(requirement=requirement):
+                self.nova_metadata_requirement.return_value = requirement
+                hooks.publish_remote_metadata_credentials()
+                self.relation_set.assert_called_with(
+                    relation_id='remote:2', relation_settings={
+                        'private-address': '192.0.2.10',
+                        'metadata-shared-secret': None})
+
+    def test_paused_compute_keeps_configured_credentials(self):
+        self.is_unit_paused_set.return_value = True
+        hooks.publish_remote_metadata_credentials()
+        self.relation_set.assert_called_with(
+            relation_id='remote:2', relation_settings={
+                'private-address': '192.0.2.10',
+                'metadata-shared-secret': 'local-secret'})
+        self.is_unit_paused_set.assert_not_called()
+
+    def test_only_publishes_to_the_joining_relation(self):
+        hooks.publish_remote_metadata_credentials('remote:3')
+        self.relation_ids.assert_not_called()
+        self.relation_set.assert_called_once_with(
+            relation_id='remote:3', relation_settings={
+                'private-address': '192.0.2.10',
+                'metadata-shared-secret': 'local-secret'})
+
+    def test_no_remote_relations_does_not_publish(self):
+        self.relation_ids.return_value = []
+        hooks.publish_remote_metadata_credentials()
+        self.nova_metadata_requirement.assert_not_called()
+        self.relation_set.assert_not_called()
+
+    def test_does_not_write_to_broken_relation(self):
+        self.hook_name.return_value = 'neutron-plugin-remote-relation-broken'
+        self.relation_id.return_value = 'remote:1'
+        hooks.publish_remote_metadata_credentials()
+        self.relation_set.assert_called_once_with(
+            relation_id='remote:2', relation_settings={
+                'private-address': '192.0.2.10',
+                'metadata-shared-secret': 'local-secret'})
+
+    @patch.object(hooks, 'apt_update')
+    @patch.object(hooks, 'apt_install')
+    @patch.object(hooks, 'filter_installed_packages')
+    @patch.object(hooks, 'CONFIGS')
+    def test_metadata_update_publishes_after_configuration(
+            self, configs, filtered, install, update):
+        def configure(path):
+            self.relation_set.assert_not_called()
+            self.nova_metadata_requirement.return_value = (True, 'configured')
+
+        configs.write.side_effect = configure
+        hooks.update_metadata_service()
+        configs.write.assert_called_once_with(hooks.NOVA_CONF)
+        self.relation_set.assert_called_with(
+            relation_id='remote:2', relation_settings={
+                'private-address': '192.0.2.10',
+                'metadata-shared-secret': 'configured'})
+
+    @patch.object(hooks, 'publish_remote_metadata_credentials')
+    @patch.object(hooks, 'assess_status')
+    @patch.object(hooks, 'hooks')
+    def test_unrelated_hooks_do_not_publish_metadata(
+            self, registry, assess, publish):
+        hooks.main()
+        registry.execute.assert_called_once()
+        publish.assert_not_called()
 
 
 class TestNrpeConfig(CharmTestCase):
@@ -284,13 +379,16 @@ class NovaComputeRelationsTests(CharmTestCase):
 
         def rel_ids(x):
             return {'neutron-plugin': ['rid1'],
+                    'neutron-plugin-remote': ['remote:2'],
                     'ceph': ['ceph:0']}.get(x, [])
         self.relation_ids.side_effect = rel_ids
         self.related_units.return_value = ['ceph/0']
         self.migration_enabled.return_value = False
         hooks.config_changed()
         self.assertTrue(self.do_openstack_upgrade.called)
-        neutron_plugin_joined.assert_called_with('rid1', remote_restart=True)
+        neutron_plugin_joined.assert_any_call('rid1', remote_restart=True)
+        self.publish_remote_metadata_credentials.assert_called_once_with(
+            'remote:2')
         ceph_changed.assert_called_with(rid='ceph:0', unit='ceph/0')
         self.configure_local_ephemeral_storage.assert_called_once_with()
         self.service_start.assert_not_called()
@@ -1228,9 +1326,10 @@ class NovaComputeRelationsTests(CharmTestCase):
 
     @patch.object(hooks, 'update_metadata_service')
     @patch('charmhelpers.core.host._post_restart_on_change_helper')
-    def test_remote_metadata_events_restart_once(self, post_restart, update):
+    def test_metadata_events_restart_once(self, post_restart, update):
         for handler in (hooks.neutron_plugin_remote_changed,
-                        hooks.neutron_plugin_remote_departed):
+                        hooks.neutron_plugin_remote_departed,
+                        hooks.neutron_plugin_departed):
             with self.subTest(handler=handler.__name__):
                 update.reset_mock()
                 post_restart.reset_mock()
@@ -1254,6 +1353,8 @@ class NovaComputeRelationsTests(CharmTestCase):
     def test_remote_metadata_joined(self, joined):
         hooks.neutron_plugin_remote_joined('remote:1', remote_restart=True)
         joined.assert_called_once_with('remote:1', True)
+        self.publish_remote_metadata_credentials.assert_called_once_with(
+            'remote:1')
 
     @patch('nova_compute_context.config')
     @patch('os.environ.get')
@@ -1515,6 +1616,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         self.send_application_name.assert_not_called()
         self.remove_old_packages.assert_called_once_with()
         self.assertFalse(self.service_restart.called)
+        self.publish_remote_metadata_credentials.assert_called_once_with()
 
     @patch.object(hooks.grp, 'getgrnam')
     def test_upgrade_charm_send_app_name(self, getgrnam):
