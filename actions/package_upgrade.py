@@ -41,6 +41,7 @@ from nova_compute_hooks import (
     config_changed,
     CONFIGS,
     neutron_plugin_joined,
+    neutron_plugin_remote_joined,
     nova_ceilometer_joined,
     nova_vgpu_joined,
 )
@@ -62,6 +63,8 @@ def package_upgrade():
         # managed openstack upgrade see: BUG#1835557
         for rid in relation_ids('neutron-plugin'):
             neutron_plugin_joined(rid, remote_restart=True)
+        for rid in relation_ids('neutron-plugin-remote'):
+            neutron_plugin_remote_joined(rid, remote_restart=True)
         for rid in relation_ids('nova-ceilometer'):
             nova_ceilometer_joined(rid, remote_restart=True)
         for rid in relation_ids('nova-vgpu'):

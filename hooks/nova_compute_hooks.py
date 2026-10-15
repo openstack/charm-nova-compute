@@ -302,6 +302,9 @@ def config_changed():
     for rid in relation_ids('neutron-plugin'):
         neutron_plugin_joined(rid, remote_restart=send_remote_restart)
 
+    for rid in relation_ids('neutron-plugin-remote'):
+        neutron_plugin_remote_joined(rid, remote_restart=send_remote_restart)
+
     for rid in relation_ids('nova-ceilometer'):
         nova_ceilometer_joined(rid, remote_restart=send_remote_restart)
 
@@ -852,9 +855,22 @@ def neutron_plugin_joined(relid=None, remote_restart=False):
                  **rel_settings)
 
 
+@hooks.hook('neutron-plugin-remote-relation-joined')
+def neutron_plugin_remote_joined(relid=None, remote_restart=False):
+    neutron_plugin_joined(relid, remote_restart)
+
+
 @hooks.hook('neutron-plugin-relation-changed')
 @restart_on_change(restart_map())
 def neutron_plugin_changed():
+    update_metadata_service()
+    service_restart_handler(default_service='nova-compute')
+    trigger_ceilometer_service_restart()
+    trigger_nova_vgpu_service_restart()
+
+
+def update_metadata_service():
+    """Reconcile the metadata package and configuration for both endpoints."""
     enable_nova_metadata, _ = nova_metadata_requirement()
     if enable_nova_metadata:
         apt_update()
@@ -862,10 +878,20 @@ def neutron_plugin_changed():
                     fatal=True)
     else:
         apt_purge('nova-api-metadata', fatal=True)
-    service_restart_handler(default_service='nova-compute')
     CONFIGS.write(NOVA_CONF)
-    trigger_ceilometer_service_restart()
-    trigger_nova_vgpu_service_restart()
+
+
+@hooks.hook('neutron-plugin-remote-relation-changed')
+@restart_on_change(restart_map())
+def neutron_plugin_remote_changed():
+    update_metadata_service()
+
+
+@hooks.hook('neutron-plugin-remote-relation-departed')
+@hooks.hook('neutron-plugin-remote-relation-broken')
+@restart_on_change(restart_map())
+def neutron_plugin_remote_departed():
+    update_metadata_service()
 
 
 # TODO(jamespage): Move this into charmhelpers for general reuse.
