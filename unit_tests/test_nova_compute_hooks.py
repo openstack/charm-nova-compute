@@ -1579,6 +1579,7 @@ class NovaComputeRelationsTests(CharmTestCase):
     def test_secrets_storage_relation_joined(self):
         self.get_relation_ip.return_value = '10.23.1.2'
         self.gethostname.return_value = 'testhost'
+        self.local_unit.return_value = 'nova-compute/0'
         hooks.secrets_storage_joined()
         self.get_relation_ip.assert_called_with('secrets-storage')
         self.relation_set.assert_called_with(
@@ -1586,7 +1587,8 @@ class NovaComputeRelationsTests(CharmTestCase):
             secret_backend='charm-vaultlocker',
             isolated=True,
             access_address='10.23.1.2',
-            hostname='testhost'
+            hostname='testhost',
+            unit_name='nova-compute/0'
         )
         self.gethostname.assert_called_once_with()
 
@@ -1617,6 +1619,22 @@ class NovaComputeRelationsTests(CharmTestCase):
         self.remove_old_packages.assert_called_once_with()
         self.assertFalse(self.service_restart.called)
         self.publish_remote_metadata_credentials.assert_called_once_with()
+
+    @patch.object(hooks, 'secrets_storage_joined')
+    @patch.object(hooks.grp, 'getgrnam')
+    def test_upgrade_charm_secrets_storage(self, getgrnam,
+                                           secrets_storage_joined):
+        grp_mock = MagicMock()
+        grp_mock.gr_gid = None
+        getgrnam.return_value = grp_mock
+        self.remove_old_packages.return_value = False
+        self.sent_ceph_application_name.return_value = 'nova-compute'
+        self.relation_ids.side_effect = (
+            lambda rel: ['secrets-storage:1']
+            if rel == 'secrets-storage' else [])
+        hooks.upgrade_charm()
+        secrets_storage_joined.assert_called_once_with(
+            relation_id='secrets-storage:1')
 
     @patch.object(hooks.grp, 'getgrnam')
     def test_upgrade_charm_send_app_name(self, getgrnam):
