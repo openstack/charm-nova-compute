@@ -203,6 +203,7 @@ applications:
       ec-profile-m: 2
       libvirt-image-backend: rbd
       enable-vtpm: True
+      encrypt: true
     to:
       - '10'
 
@@ -310,3 +311,6 @@ relations:
 
   - - 'vault:secrets'
     - 'barbican-vault:secrets-storage'
+
+  - - 'vault:secrets'
+    - 'nova-compute:secrets-storage'

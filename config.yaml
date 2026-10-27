@@ -789,6 +789,17 @@ options:
     description: |
       Encrypt block devices used for Nova instances using dm-crypt, making use
       of vault for encryption key management; requires a relation to vault.
+  encrypt-device-timeout:
+    type: int
+    default: 180
+    description: |
+      Time to wait, in seconds, for the encrypted ephemeral backing device to
+      appear during boot before systemd mount processing gives up. This is
+      passed to fstab as x-systemd.device-timeout=<N>s. The systemd default
+      is 90s, which may be too short when vaultlocker-decrypt takes longer to
+      create the /dev/mapper/crypt-<uuid> device. Changes are applied
+      immediately to fstab, but their effect on boot-time mount handling is
+      typically observed after a reboot.
   ephemeral-unmount:
     type: string
     default:

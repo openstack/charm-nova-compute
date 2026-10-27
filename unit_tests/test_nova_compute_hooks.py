@@ -318,6 +318,20 @@ class NovaComputeRelationsTests(CharmTestCase):
             NovaComputeHostInfoContext.RECORD_FQDN_KEY, True)
         kv.flush.assert_any_call()
 
+    def test_install_vaultlocker_for_encrypted_ephemeral_storage(
+            self):
+        self.test_config.set('encrypt', True)
+        hooks.install_vaultlocker()
+        self.apt_install.assert_called_with('vaultlocker', fatal=True)
+
+    def test_install_vaultlocker_already_installed(
+            self):
+        self.test_config.set('encrypt', True)
+        self.filter_installed_packages.side_effect = None
+        self.filter_installed_packages.return_value = []
+        hooks.install_vaultlocker()
+        self.apt_install.assert_not_called()
+
     def test_configure_extra_repositories(self):
         """Tests configuring of extra repositories"""
         # Validate that invalid strings do not attempt to add sources
@@ -1590,7 +1604,7 @@ class NovaComputeRelationsTests(CharmTestCase):
         )
         self.gethostname.assert_called_once_with()
 
-    def test_secrets_storage_relation_changed(self,):
+    def test_secrets_storage_relation_changed(self):
         self.relation_get.return_value = None
         hooks.secrets_storage_changed()
         self.configure_local_ephemeral_storage.assert_called_once_with()
