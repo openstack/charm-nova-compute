@@ -779,6 +779,10 @@ def upgrade_charm():
 
     for r_id in relation_ids('amqp'):
         amqp_joined(relation_id=r_id)
+    # Send unit_name to vault on existing relations
+    # LP: https://bugs.launchpad.net/vault-charm/+bug/2169390
+    for r_id in relation_ids('secrets-storage'):
+        secrets_storage_joined(relation_id=r_id)
     # Trigger upgrade-path from application_name to 'nova-compute'
     if sent_ceph_application_name() != CEPH_AUTH_CRED_NAME:
         for r_id in relation_ids('ceph'):
@@ -1008,7 +1012,8 @@ def secrets_storage_joined(relation_id=None):
                  secret_backend=vaultlocker.VAULTLOCKER_BACKEND,
                  isolated=True,
                  access_address=get_relation_ip('secrets-storage'),
-                 hostname=gethostname())
+                 hostname=gethostname(),
+                 unit_name=local_unit())
 
 
 @hooks.hook('secrets-storage-relation-changed')
